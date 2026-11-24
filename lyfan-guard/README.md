@@ -16,6 +16,8 @@ powershell -ExecutionPolicy Bypass -File .\instalar.ps1
 powershell -ExecutionPolicy Bypass -File .\run-mvp.ps1
 ```
 
+Notas de la primera vez: `instalar.ps1` descarga la voz Dave (63 MB) y las librerías de Python; con tarjeta NVIDIA instala además las de CUDA (~1 GB). La primera vez que se usa el micrófono se descarga el modelo de escucha (~1,6 GB con GPU o ~0,5 GB sin ella). Ollama debe estar instalado y el modelo descargado antes de abrir a LyFan; sin Ollama, LyFan funciona en modo básico (solo el detector).
+
 LyFan aparece abajo a la derecha, siempre encima de las demás ventanas.
 
 | Qué | Cómo |

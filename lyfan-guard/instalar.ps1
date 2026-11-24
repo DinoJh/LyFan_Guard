@@ -10,7 +10,7 @@ if (-not (Test-Path '.venv')) { python -m venv .venv }
 & .\.venv\Scripts\python.exe -m pytest -q
 
 Write-Host '     Descargando la voz sin internet (63 MB, una sola vez)...'
-try { & .\.venv\Scripts\python.exe -c "from app import voz; voz.descargar_piper_sync('es_MX-claude-high')" } catch { Write-Warning 'No pude descargar la voz sin internet; puedes hacerlo despues desde Ajustes.' }
+try { & .\.venv\Scripts\python.exe -c "from app import voz; voz.descargar_piper_sync('es_ES-davefx-medium')" } catch { Write-Warning 'No pude descargar la voz sin internet; puedes hacerlo despues desde Ajustes.' }
 
 Write-Host '2/2  Ventana flotante (Electron)...'
 Set-Location (Join-Path $raiz 'desktop')
