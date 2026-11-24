@@ -1,0 +1,54 @@
+:root{color-scheme:dark}
+/* Copia de la mascota Plan A (13 expresiones) sin las reglas de la página de demostración. */
+#lyfan-unified { --pet-bg:light-dark(#f7f9fb,#101820); --pet-text:light-dark(#223848,#e7eef3); --pet-muted:light-dark(#5c6e7d,#9bafbd); --pet-line:light-dark(#dee6eb,#2b3944); --pet-pop:light-dark(#ffffff,#1c2933); --pet-light:#71ddc5; font:400 14px/1.5 system-ui,sans-serif; color:var(--pet-text); }
+#lyfan-unified * { box-sizing:border-box; }
+#lyfan-unified .pet-shell { border:1px solid var(--pet-line); border-radius:26px; background:var(--pet-bg); overflow:hidden; }
+#lyfan-unified .pet-header { padding:24px 100px 0 27px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+#lyfan-unified .pet-brand { display:flex; align-items:center; gap:12px; }
+#lyfan-unified .pet-logo { display:grid; place-items:center; width:36px; height:40px; border-radius:12px 12px 17px 17px; background:light-dark(#d9eee9,#1b3d3b); color:light-dark(#286459,#90deca); }
+#lyfan-unified .pet-name { font-size:18px; font-weight:500; letter-spacing:3px; }
+#lyfan-unified .pet-tagline { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--pet-muted); }
+#lyfan-unified .pet-edition { font-size:11px; letter-spacing:.8px; color:var(--pet-muted); white-space:nowrap; }
+#lyfan-unified .pet-stage { position:relative; height:474px; isolation:isolate; }
+#lyfan-unified .pet-ambient { position:absolute; inset:30px 8% 0; background:radial-gradient(ellipse at 50% 62%,color-mix(in srgb,var(--pet-light) 7%,transparent),transparent 64%); pointer-events:none; }
+#lyfan-unified .pet-speech { position:absolute; z-index:2; top:16px; left:50%; transform:translateX(-50%); width:max-content; max-width:calc(100% - 40px); border:1px solid var(--pet-line); border-radius:18px; padding:12px 19px; text-align:center; background:var(--pet-pop); box-shadow:0 8px 26px light-dark(#24475108,#00000016); pointer-events:none; }
+#lyfan-unified .pet-speech:after { content:''; position:absolute; left:calc(50% - 5px); bottom:-6px; width:10px; height:10px; background:var(--pet-pop); border-bottom:1px solid var(--pet-line); border-right:1px solid var(--pet-line); transform:rotate(45deg); }
+#lyfan-unified .pet-speech-label { color:var(--pet-muted); font-size:10px; letter-spacing:1.7px; text-transform:uppercase; margin-bottom:3px; }
+#lyfan-unified .pet-phrase { font-weight:500; font-size:14px; }
+#lyfan-unified .pet-hit { position:absolute; width:410px; max-width:100%; aspect-ratio:1; padding:0; left:50%; bottom:0; transform:translateX(-50%); border:0; background:transparent; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+#lyfan-unified .pet-hit:focus-visible { outline:2px solid var(--pet-light); outline-offset:-12px; border-radius:48%; }
+#lyfan-unified .pet-canvas { display:block; width:100%; height:100%; }
+#lyfan-unified .pet-status { display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; color:var(--pet-muted); padding:4px 18px 16px; text-align:center; }
+#lyfan-unified .pet-status-dot { flex:0 0 6px; height:6px; border-radius:50%; background:var(--pet-light); box-shadow:0 0 0 3px color-mix(in srgb,var(--pet-light) 12%,transparent); }
+#lyfan-unified .pet-action { min-height:40px; display:flex; align-items:center; gap:7px; padding:9px 12px; border:1px solid var(--pet-line); border-radius:12px; background:var(--pet-pop); color:var(--pet-text); cursor:pointer; font:400 12px/1.5 system-ui,sans-serif; transition:background .15s,border-color .15s,transform .15s; }
+#lyfan-unified .pet-action:hover { transform:translateY(-1px); border-color:color-mix(in srgb,var(--pet-light) 45%,var(--pet-line)); }
+#lyfan-unified .pet-action[aria-pressed=true] { background:light-dark(#234b45,#bfe7da); border-color:transparent; color:light-dark(#f2fcf7,#203f37); }
+#lyfan-unified .pet-action svg { width:15px; height:15px; }
+#lyfan-unified .pet-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:13px 23px; border-top:1px solid var(--pet-line); color:var(--pet-muted); font-size:11px; }
+#lyfan-unified .pet-footer-actions { display:flex; align-items:center; flex-wrap:wrap; gap:16px; }
+#lyfan-unified .pet-blink { border:0; background:transparent; padding:5px 0; color:var(--pet-text); cursor:pointer; font:inherit; }
+#lyfan-unified .pet-blink:disabled { opacity:.4; cursor:default; }
+#lyfan-unified .pet-motion { display:flex; align-items:center; gap:7px; cursor:pointer; }
+#lyfan-unified .pet-motion input { width:14px; height:14px; margin:0; accent-color:#347c6c; }
+#lyfan-unified .pet-dream { opacity:0; visibility:hidden; position:absolute; width:410px; max-width:100%; aspect-ratio:1; bottom:0; left:50%; transform:translateX(-50%); pointer-events:none; z-index:1; transition:opacity .3s ease,visibility .3s; }
+#lyfan-unified[data-pose=sleep] .pet-dream { opacity:1; visibility:visible; }
+#lyfan-unified .pet-dream-z { position:absolute; display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; border-radius:50%; background:transparent; color:light-dark(#6f91a8,#a8c7dc); font:500 25px/1 system-ui,sans-serif; text-shadow:0 0 16px light-dark(#86b5cb35,#8ac2df45); cursor:pointer; pointer-events:auto; animation:lyfan-dream-rise 3.5s ease-in-out infinite; }
+#lyfan-unified .pet-dream-z:first-child { left:69%; top:34%; }
+#lyfan-unified .pet-dream-z:nth-child(2) { left:77%; top:20%; font-size:29px; animation-delay:-1.15s; }
+#lyfan-unified .pet-dream-z:nth-child(3) { left:85%; top:6%; font-size:34px; animation-delay:-2.3s; }
+#lyfan-unified .pet-dream-z:hover { color:var(--pet-text); }
+#lyfan-unified .pet-dream-z.pet-popped { animation:lyfan-dream-pop .5s ease-out forwards!important; }
+#lyfan-unified[data-motion=false] .pet-dream-z { animation-play-state:paused; }
+#lyfan-unified .pet-alert { opacity:0; visibility:hidden; position:absolute; width:410px; max-width:100%; aspect-ratio:1; bottom:0; left:50%; transform:translateX(-50%) translateY(5px); pointer-events:none; z-index:1; transition:opacity .32s ease,transform .38s ease,visibility .32s; }
+#lyfan-unified:is([data-pose=alert],[data-pose=alertTalk]) .pet-alert { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
+#lyfan-unified .pet-alert-mark { position:absolute; display:grid; place-items:center; width:44px; height:48px; border:0; border-radius:12px; padding:0; background:transparent; color:light-dark(#a76a24,#ffc17b); font:500 38px/1 system-ui,sans-serif; text-shadow:0 0 18px #e9b77335; pointer-events:auto; cursor:pointer; animation:lyfan-alert-hop 1.65s ease-in-out infinite; }
+#lyfan-unified .pet-alert-mark:first-child { left:73%; top:24%; }
+#lyfan-unified .pet-alert-mark:last-child { left:84%; top:39%; font-size:30px; animation-delay:-.7s; }
+#lyfan-unified[data-motion=false] .pet-alert-mark { animation-play-state:paused; }
+@keyframes lyfan-alert-hop { 0%,100%{transform:translateY(0) rotate(-8deg) scale(1);opacity:.7}40%{transform:translateY(-12px) rotate(7deg) scale(1.12);opacity:1}65%{transform:translateY(-5px) rotate(-3deg) scale(1.04);opacity:.9} }
+@keyframes lyfan-dream-rise { 0%,100%{transform:translateY(0) rotate(-5deg);opacity:.55}50%{transform:translateY(-13px) rotate(6deg);opacity:1} }
+@keyframes lyfan-dream-pop { 0%{transform:scale(1);opacity:1}100%{transform:translateY(-22px) scale(1.6);opacity:0} }
+@media(max-width:480px) { #lyfan-unified .pet-dream,#lyfan-unified .pet-alert,#lyfan-unified .pet-hit{width:320px} }
+@media(prefers-reduced-motion:reduce) { #lyfan-unified .pet-action,#lyfan-unified .pet-alert,#lyfan-unified .pet-dream{transition:none!important}#lyfan-unified .pet-dream-z,#lyfan-unified .pet-alert-mark{animation:none!important} }
+
+

@@ -1,0 +1,14 @@
+{
+  "name": "lyfan-guard-desktop",
+  "version": "0.1.0",
+  "description": "LyFan Guard: robot guardián flotante (ventana transparente con Electron)",
+  "main": "main.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^45.4.1"
+  }
+}
