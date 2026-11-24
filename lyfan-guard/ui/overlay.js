@@ -42,12 +42,23 @@
     if (window.LyFan) window.LyFan.say(texto);
     frase.scrollTop = frase.scrollHeight;
   }
+  // Guiño y curioso duran como mínimo lo suficiente para verse: aunque algo pida volver a reposo antes, esperan.
+  const MIN_POSE = { wink: 2000, curious: 3500 };
+  let poseDesde = 0, idleDiferido = 0;
   function pose(nombre) {                                   // cambia de expresión conservando el texto de la burbuja
-    if (!window.LyFan || window.LyFan.pose === nombre) return;
+    if (!window.LyFan) return;
+    const actual = window.LyFan.pose;
+    if (actual === nombre) return;
+    clearTimeout(idleDiferido);
+    const minimo = MIN_POSE[actual];
+    if (minimo && nombre === 'idle') {
+      const resta = minimo - (performance.now() - poseDesde);
+      if (resta > 0) { idleDiferido = setTimeout(() => { if (window.LyFan.pose === actual) pose('idle'); }, resta + 30); return; }
+    }
     window.LyFan.setPose(nombre);
     window.LyFan.say(textoBurbuja);
   }
-  function ponerPose(p) { window.LyFan.setPose(p); textoBurbuja = frase.textContent; }   // la expresión trae su propia frase
+  function ponerPose(p) { clearTimeout(idleDiferido); window.LyFan.setPose(p); textoBurbuja = frase.textContent; }   // la expresión trae su propia frase
   function nivelBurbuja(nivel) { if (nivel) root.dataset.nivel = nivel; else delete root.dataset.nivel; }
   const nivelMic = n => { if (window.LyFan && window.LyFan.nivelMic) window.LyFan.nivelMic(n); };   // barras de «Escuchando»
 
@@ -66,6 +77,8 @@
     talk: 'Se lo explico con calma, señor.',
     work: 'Manos al teclado, señor. Estoy en ello.',
     workTalk: 'Sigo trabajando, señor. Le cuento cómo vamos.',
+    encrypt: 'Estoy cifrando. Un momento…',
+    decrypt: 'Estoy descifrando. Un momento…',
   };
   function aplicarFrases() {
     const d = window.LyFan && window.LyFan.datos; if (!d) return;
@@ -73,8 +86,54 @@
   }
   // Al hablar: con riesgo, «Alerta hablando»; al explicar un análisis tranquilo, «Analizar hablando»;
   // si todavía está generando la respuesta, «Trabajando hablando»; si no, «Hablando».
-  const poseHablando = (n, trabajando) => (n === 'alerta' || n === 'peligro') ? 'alertTalk'
-    : n === 'tranquilo' ? 'scanTalk' : trabajando ? 'scanTalk' : 'talk';
+  // Tareas de la bóveda: al cifrar, «Cifrar»; al descifrar, «Descifrar»; al analizar, «Analizar hablando»; si hallan algo malo, «Alerta hablando».
+  let poseDeTarea = null, ctxHabla = null, vencePose = 0;
+  const poseHablando = (n, trabajando) => {
+    if (n === 'alerta' || n === 'peligro') return 'alertTalk';
+    const t = (ctxHabla && ctxHabla.tarea) || poseDeTarea;
+    if (t === 'encrypt' || t === 'decrypt') return t;
+    if (t === 'scan') return 'scanTalk';
+    return n === 'tranquilo' ? 'scanTalk' : trabajando ? 'scanTalk' : 'talk';
+  };
+  const TEXTO_TAREA = { encrypt: 'Cifrando, un momento…', decrypt: 'Descifrando, un momento…', scan: 'Analizando el archivo, un momento…' };
+  function poseTarea(p) {                                    // la pantalla de la bóveda avisa qué está haciendo
+    if (p && p === poseDeTarea) return;
+    clearTimeout(vencePose);
+    poseDeTarea = p || null;
+    if (!p) { if (!ocupado && !hablando() && !ctxHabla) volverAReposo(600); return; }
+    despertar(); clearTimeout(temporizadorPose); limpiarOcio(); nivelBurbuja(null);
+    if (!ocupado) decir(TEXTO_TAREA[p]);
+    pose(p);
+    vencePose = setTimeout(() => poseTarea(null), 120000);    // por si la pantalla se cierra sin avisar
+  }
+
+  // ¿Su respuesta dice que algo es malo? Entonces habla con «Alerta hablando». El modelo marca «[ALERTA]» al empezar;
+  // si no lo hace, se buscan frases claras de peligro (sin contar las negadas: «no es un virus»).
+  const RE_AMENAZA = [
+    /\b(?:es|son|era|resulta|resultó|parece|podría ser|puede ser|sería)\s+(?:un[ao]?s?\s+)?(?:\w+\s+){0,2}?(?:malicios\w*|peligros\w*|sospechos\w*|fraudulent\w*|estafa|fraude|virus|malware|troyano|ransomware|phishing|amenaza)\b/i,
+    /\b(?:es|son)\s+(?:muy\s+)?(?:malo|mala|malos|malas|dañino\w*|dañin\w*)\b/i,
+    /\b(?:cuidado|peligro|riesgo (?:alto|elevado)|detecté (?:algo|señales|un|una)|señales (?:de peligro|sospechosas))\b/i,
+  ];
+  const RE_ORDEN = /\bno\s+(?:lo|la|los|las)?\s*(?:abra|abras|ejecute|ejecutes|descargue|descargues|instale|instales|toque|pulse|haga clic|haga click|comparta|compartas|responda|respondas)\b/i;
+  const RE_NEGADO = /\b(?:no|ni|sin|nunca|tampoco|descart\w*)\b/i;
+  const RE_DEFINICION = /\b(?:qué es|que es|qué son|qué significa|que significa|cómo funciona|como funciona|para qué sirve|explica\w*|diferencia)\b/i;
+  function detectaAmenaza(t) {
+    if (RE_ORDEN.test(t)) return true;
+    for (const re of RE_AMENAZA) {
+      const g = new RegExp(re.source, 'gi'); let m;
+      while ((m = g.exec(t))) {
+        const antes = t.slice(Math.max(0, m.index - 28), m.index).split(/[.!?\n]/).pop();
+        if (!RE_NEGADO.test(antes)) return true;
+      }
+    }
+    return false;
+  }
+  function procesarAlerta(t, pregunta) {                     // quita la etiqueta [ALERTA] y dice si hay que alertar
+    const m = /^\s*\[(ALERTA|PELIGRO)\]\s*/i.exec(t);
+    if (m) return { texto: t.slice(m[0].length), alerta: true };
+    if (/^\s*\[[A-Za-z]{0,8}$/.test(t)) return { texto: '', alerta: false };   // la etiqueta aún está llegando
+    return { texto: t, alerta: !RE_DEFINICION.test(pregunta || '') && detectaAmenaza(t) };
+  }
 
   // ================================================================== 3. ánimo en reposo
   const ANIMO = { trabajaS: 50, duermeMin: 3 };             // a los 50 s se pone a trabajar; a los 3 minutos se duerme
@@ -88,7 +147,7 @@
 
   function volverAReposo(ms) {
     clearTimeout(temporizadorPose);
-    temporizadorPose = setTimeout(() => { nivelBurbuja(null); pose('idle'); programarOcio(); }, ms);
+    temporizadorPose = setTimeout(() => { if (poseDeTarea) return; nivelBurbuja(null); pose('idle'); programarOcio(); }, ms);
   }
   function limpiarOcio() { ocioTimers.forEach(clearTimeout); ocioTimers = []; }
   function gestoAlAzar(primero) {                            // en reposo, de vez en cuando: curioso, guiño o una sonrisa
@@ -98,7 +157,7 @@
         let r = Math.random() * GESTOS.reduce((a, g) => a + g[1], 0), g = GESTOS[0][0];
         for (const [p, w] of GESTOS) { if ((r -= w) <= 0) { g = p; break; } }
         ponerPose(g);
-        ocioTimers.push(setTimeout(() => { if (libre() && window.LyFan.pose === g) pose('idle'); }, g === 'wink' ? 2600 : g === 'work' ? 5000 : 3400));
+        ocioTimers.push(setTimeout(() => { if (libre() && window.LyFan.pose === g) pose('idle'); }, g === 'wink' ? 2400 : g === 'work' ? 5000 : 3900));
       }
       gestoAlAzar(false);
     }, espera));
@@ -170,7 +229,7 @@
       try { if (window.LyFanBoveda && !forzarAnalisis) local = await window.LyFanBoveda.comando(texto); } catch (e) { console.warn('Bóveda:', e); }
       if (local !== null) {
         primerTrozo = false; acumulado = local;
-        if (!V.prefs.activa) pose('talk');
+        if (!V.prefs.activa) pose(poseHablando(root.dataset.nivel, false));
         decir(limpiarMd(local).trim()); V.agregarTexto(limpiarMd(local));
       } else {
       const resp = await fetch('/api/chat', {
@@ -201,15 +260,19 @@
               primerTrozo = false; acumulado = '';
               if (!V.prefs.activa) pose(poseHablando(nivel, true)); else if (!nivel) pose('scan');   // con voz, la boca se mueve cuando suena el audio
             }
-            acumulado += ev.texto; decir(limpiarMd(acumulado).trim()); V.agregarTexto(limpiarMd(acumulado));
+            acumulado += ev.texto;
+            const vis = procesarAlerta(acumulado, texto);
+            if (vis.alerta && !nivel) { nivel = 'alerta'; nivelBurbuja(nivel); if (!V.prefs.activa || V.estaHablando()) pose('alertTalk'); }
+            if (vis.texto) { decir(limpiarMd(vis.texto).trim()); V.agregarTexto(limpiarMd(vis.texto)); }
           }
         }
       }
       }
-      if (!acumulado.trim()) decir('Disculpe, señor, no supe qué responder. ¿Podría decírmelo de otra forma?');
-      agregarMensaje('lyfan', limpiarMd(acumulado || textoBurbuja).trim());
+      const final = procesarAlerta(acumulado, texto).texto;
+      if (!final.trim()) decir('Disculpe, señor, no supe qué responder. ¿Podría decírmelo de otra forma?');
+      agregarMensaje('lyfan', limpiarMd(final || textoBurbuja).trim());
       frase.scrollTop = 0;                                    // al terminar, la burbuja se lee desde el principio
-      V.terminarRespuesta(limpiarMd(acumulado || textoBurbuja).trim());
+      V.terminarRespuesta(limpiarMd(final || textoBurbuja).trim());
     } catch (e) {
       console.error(e);
       decir('Disculpe, señor, perdí la conexión con mi cerebro local. Verifique que LyFan Guard esté encendido.');
@@ -253,7 +316,7 @@
     pose('happy'); volverAReposo(3200);
   });
   let poseAnterior = null;                                    // si algo despierta a LyFan (clic, las z…), se reinician sus tiempos
-  document.addEventListener('lyfan:pose', e => { const n = e.detail.pose; if (poseAnterior === 'sleep' && n !== 'sleep') programarOcio(); poseAnterior = n; });
+  document.addEventListener('lyfan:pose', e => { poseDesde = performance.now(); const n = e.detail.pose; if (poseAnterior === 'sleep' && n !== 'sleep') programarOcio(); poseAnterior = n; });
   document.addEventListener('pointerdown', () => { reiniciarSueno(); });
 
   // ================================================================== 7. voz
@@ -266,7 +329,7 @@
   V.on('aviso', avisoVoz);
   V.on('inicio', () => pose(poseHablando(root.dataset.nivel, ocupado)));
   V.on('fin', () => {                                         // terminó de hablar: deja de mover la boca
-    if (ocupado) return;
+    if (ocupado || poseDeTarea) return;
     const n = root.dataset.nivel;
     if (n === 'alerta' || n === 'peligro') pose('alert');     // sigue en alerta, ya sin hablar
     else if (n === 'tranquilo') pose('happy');
@@ -426,8 +489,33 @@
   }
 
   // Lo que el panel de configuración (ajustes.js) necesita de este archivo
+  // LyFan dice algo que no viene del chat (por ejemplo, el resultado de una tarea de la bóveda)
+  // o.tarea: 'encrypt' | 'decrypt' | 'scan' (qué estaba haciendo); o.nivel: 'tranquilo' | 'alerta' | 'peligro' (cómo salió)
+  function responder(texto, o = {}) {
+    const t = limpiarMd(String(texto || '')).trim(); if (!t) return;
+    if (V.prefs.activa) V.detener();
+    clearTimeout(temporizadorPose); clearTimeout(vencePose); limpiarOcio();
+    ctxHabla = { tarea: o.tarea || poseDeTarea || null }; poseDeTarea = null;
+    const nivel = o.nivel || null;
+    nivelBurbuja(nivel);
+    agregarMensaje('lyfan', t); decir(t); despertar();
+    if (V.prefs.activa) { V.agregarTexto(t); V.terminarRespuesta(t); } else pose(poseHablando(nivel, false));
+    V.cuandoCalle(() => {
+      ctxHabla = null;
+      if (nivel === 'alerta' || nivel === 'peligro') { pose('alert'); volverAReposo(25000); }
+      else if (nivel === 'tranquilo') { pose('happy'); volverAReposo(2500); }
+      else volverAReposo(V.prefs.activa ? 500 : 3000);
+    });
+  }
+
+  // Un solo clic en LyFan oculta (o muestra) la barra de abajo: queda solo la mascota. No la despierta.
+  hit.addEventListener('click', () => {
+    const solo = document.body.classList.toggle('solo-mascota');
+    if (solo) cerrarPaneles();
+  });
+
   window.LyFanApp = {
-    escritorio, decir, pose, cerrarPaneles, aplicarModoMic,
+    escritorio, decir, pose, cerrarPaneles, aplicarModoMic, responder, poseTarea,
     estadoMic: () => estadoMic,
     alEstadoMic: f => oyentesMic.push(f),
     alAvisoVoz: f => oyentesAviso.push(f),

@@ -16,6 +16,7 @@
     <img class="pet-analysis-source" hidden alt="" data-lyfan-image="analizar-unificado.webp">
     <img class="pet-body-source" hidden alt="" data-lyfan-image="cuerpo-base.webp">
     <img class="pet-extra-source" hidden alt="" data-lyfan-image="hablando-trabajando.webp">
+    <img class="pet-work-source" hidden alt="" data-lyfan-image="trabajando-unificado.webp">
     <section class="pet-shell" aria-label="LyFan, tu guardián de ciberseguridad">
       <div class="pet-stage">
         <div class="pet-speech" aria-live="polite">
@@ -78,33 +79,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
           <span><strong>Voces</strong><small id="aj-res-voz">Cómo le habla</small></span><i aria-hidden="true">&#8250;</i>
         </button>
-        <button class="aj-opcion" type="button" data-ir="boveda">
+        <button class="aj-opcion" type="button" id="aj-abrir-boveda">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span><strong>Bóveda</strong><small id="aj-res-boveda">Archivos cifrados</small></span><i aria-hidden="true">&#8250;</i>
+          <span><strong>Bóveda</strong><small id="aj-res-boveda">Cifrar y proteger archivos</small></span><i aria-hidden="true">&#8250;</i>
         </button>
-      </div>
-
-      <!-- Bóveda -->
-      <div class="aj-vista" data-vista="boveda" hidden>
-        <div id="bv-crear" hidden>
-          <p class="aj-nota">Todavía no tiene bóveda. Cree la contraseña maestra con la que LyFan cifrará sus archivos.</p>
-          <div class="aj-fila"><button class="mini principal" id="bv-crear-ok" type="button">Crear contraseña…</button></div>
-        </div>
-        <div id="bv-bloqueada" hidden>
-          <p class="aj-nota">La bóveda está bloqueada 🔒</p>
-          <div class="aj-fila"><button class="mini principal" id="bv-abrir" type="button">Desbloquear…</button></div>
-        </div>
-        <div id="bv-abierta" hidden>
-          <div class="bv-zona" id="bv-zona" tabindex="0">Arrastre aquí sus archivos para guardarlos en la bóveda</div>
-          <div class="aj-fila">
-            <button class="mini" id="bv-elegir" type="button">Elegir archivos…</button>
-            <button class="mini" id="bv-bloquear" type="button">Bloquear</button>
-            <input type="file" id="bv-archivo" multiple hidden>
-          </div>
-          <ul class="bv-lista" id="bv-lista"></ul>
-          <p class="aj-nota" id="bv-carpeta"></p>
-        </div>
-        <p class="aj-nota" id="bv-estado" role="status"></p>
       </div>
 
       <!-- Tamaño -->
@@ -216,26 +194,6 @@
     </div>
   </form>
 </main>
-  <!-- Ventana central para la contraseña de la bóveda (crear, desbloquear y descifrar) -->
-  <div class="bv-modal" id="bv-modal" hidden>
-    <form class="bv-caja" id="bvm-form" role="dialog" aria-modal="true" aria-labelledby="bvm-titulo" autocomplete="off">
-      <div class="bv-candado" aria-hidden="true">🔒</div>
-      <h2 id="bvm-titulo"></h2>
-      <p class="aj-nota" id="bvm-texto"></p>
-      <div class="bv-campo">
-        <input type="password" id="bvm-clave" autocomplete="new-password" spellcheck="false" placeholder="Contraseña maestra" aria-label="Contraseña maestra">
-        <button type="button" class="mini" id="bvm-ver" aria-label="Mostrar u ocultar la contraseña">Ver</button>
-      </div>
-      <div class="bv-digitos" id="bvm-digitos" aria-hidden="true"></div>
-      <input type="password" id="bvm-repite" autocomplete="new-password" spellcheck="false" placeholder="Repita la contraseña" aria-label="Repita la contraseña" hidden>
-      <p class="aj-nota estado-mal" id="bvm-error" role="alert"></p>
-      <div class="aj-fila bv-botones">
-        <button type="submit" class="mini principal" id="bvm-ok">Aceptar</button>
-        <button type="button" class="mini" id="bvm-cancel">Cancelar</button>
-      </div>
-    </form>
-  </div>
-
 <script src="mascota/imagenes.js"></script>
 <script src="mascota/mascota.js"></script>
 <script src="voz.js"></script>

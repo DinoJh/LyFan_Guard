@@ -194,29 +194,10 @@ body.arrastrando * { cursor: grabbing !important; }
 /* La configuración ocupa solo lo que necesita (el menú es corto) */
 .log.ajustes { top: auto; max-height: calc(100vh - 150px); }
 
-/* ---- Bóveda ---- */
-.bv-zona { border: 2px dashed var(--c-linea); border-radius: 14px; padding: 16px 12px; text-align: center; color: var(--c-suave); font-size: 12.5px; transition: border-color .15s, background .15s; }
-.bv-zona.sobre, .bv-zona:focus-visible { border-color: var(--c-verde); background: #17262c; color: var(--c-texto); outline: none; }
-.bv-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.bv-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--c-linea); border-radius: 12px; background: #131d26; }
-.bv-item .bv-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.3px; }
-.bv-item .bv-nombre small { display: block; color: var(--c-suave); font-size: 10.5px; }
-.bv-item .bv-cand { color: var(--c-verde); font-size: 14px; }
-.bv-item .mini { padding: 4px 8px; font-size: 11.5px; }
-.bv-vacio { color: var(--c-suave); font-size: 12px; text-align: center; padding: 6px; }
-body.arrastrando-archivo::after { content: 'Suelte el archivo para guardarlo en la bóveda'; position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(16, 24, 32, .82); color: #eafaf5; font-size: 15px; border: 2px dashed var(--c-verde); border-radius: 18px; z-index: 50; pointer-events: none; }
-
-/* ---- Ventana central de la contraseña ---- */
-.bv-modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 14px; background: rgba(8, 13, 18, .78); border-radius: 18px; }
-.bv-modal[hidden] { display: none; }
-.bv-caja { width: 100%; max-width: 330px; display: flex; flex-direction: column; gap: 8px; padding: 18px 16px 14px; border: 1px solid var(--c-linea); border-radius: 18px; background: #101820; box-shadow: 0 18px 40px rgba(0, 0, 0, .55); text-align: center; }
-.bv-caja h2 { margin: 0; font-size: 15px; color: var(--c-texto); }
-.bv-candado { font-size: 26px; line-height: 1; }
-.bv-campo { display: flex; gap: 6px; }
-.bv-campo input, .bv-caja > input { flex: 1; min-width: 0; padding: 9px 10px; border: 1px solid var(--c-linea); border-radius: 10px; background: #0d151c; color: var(--c-texto); font: inherit; font-size: 14px; letter-spacing: .08em; }
-.bv-caja > input[hidden] { display: none; }
-.bv-campo input:focus, .bv-caja > input:focus { border-color: var(--c-verde); outline: none; }
-.bv-digitos { min-height: 16px; letter-spacing: 3px; font-size: 13px; color: var(--c-verde); overflow: hidden; white-space: nowrap; }
-.bv-botones { justify-content: center; }
-.bv-caja .aj-nota { text-align: center; }
-.bv-caja .estado-mal:empty { display: none; }
+/* --- más cerca del robot (proporcional a su tamaño) y modo «solo mascota» --- */
+#lyfan-unified .pet-speech { top: auto; bottom: calc(var(--pet-size) * .93); }
+#lyfan-unified .pet-phrase { max-height: 100px; }
+.ov { gap: 0; }
+.dock { margin-top: calc(var(--pet-size) * -.07); transition: opacity .22s, transform .22s; }
+body.solo-mascota .dock { opacity: 0; transform: translateY(10px); pointer-events: none; }
+body.solo-mascota .dock * { pointer-events: none; }

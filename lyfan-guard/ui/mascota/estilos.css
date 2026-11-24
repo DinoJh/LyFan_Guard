@@ -52,3 +52,5 @@
 @media(prefers-reduced-motion:reduce) { #lyfan-unified .pet-action,#lyfan-unified .pet-alert,#lyfan-unified .pet-dream{transition:none!important}#lyfan-unified .pet-dream-z,#lyfan-unified .pet-alert-mark{animation:none!important} }
 
 
+
+#lyfan-unified .pet-hit{touch-action:none;}

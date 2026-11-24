@@ -131,6 +131,7 @@ def estado() -> dict:
     return {
         "creada": existe(), "bloqueada": not desbloqueada(), "carpeta": str(DIR_BOVEDA),
         "autobloqueo_min": AUTOBLOQUEO_S // 60, "archivos": listar() if existe() else [],
+        "bloquea_en_s": max(0, int(_expira - time.monotonic())) if desbloqueada() else 0,
     }
 
 
@@ -356,17 +357,29 @@ def datos_sensibles(texto: str) -> list[str]:
     return hallazgos
 
 
-def analizar(nombre: str) -> dict:
-    """Revisa un archivo SIN cifrar (de texto): datos sensibles y señales de estafa. Todo se hace en este equipo."""
-    from . import detector  # noqa: PLC0415
+def _ruta_revisable(nombre: str) -> Path:
     ruta = _ruta_segura(nombre)
     if not ruta.is_file():
         raise ErrorBoveda("Ese archivo no existe.")
     if ruta.suffix == EXT:
-        raise ErrorBoveda("Ese archivo está cifrado; descífrelo primero para analizarlo.")
-    if ruta.suffix.lower() not in _TEXTO_EXT:
-        return {"nombre": ruta.name, "revisable": False,
-                "mensaje": "Por ahora solo reviso archivos de texto (txt, csv, json, correos…). Para otros tipos, cífrelo para protegerlo."}
-    texto = ruta.read_text(encoding="utf-8", errors="replace")[:MAX_ANALIZAR]
-    r = detector.analizar(texto[:6000]).a_dict() if texto.strip() else None
-    return {"nombre": ruta.name, "revisable": True, "sensibles": datos_sensibles(texto), "estafa": r}
+        raise ErrorBoveda("Ese archivo está cifrado; descífrelo primero.")
+    return ruta
+
+
+def analizar(nombre: str) -> dict:
+    """Revisa un archivo SIN cifrar (texto, scripts como .bat o .ps1, o por su nombre/huella). Todo en este equipo; no ejecuta nada."""
+    from . import analisis_archivo  # noqa: PLC0415
+    return analisis_archivo.analizar_archivo(_ruta_revisable(nombre))
+
+
+def leer(nombre: str) -> dict:
+    """Vista previa de un archivo de texto o script sin cifrar."""
+    from . import analisis_archivo  # noqa: PLC0415
+    return analisis_archivo.leer(_ruta_revisable(nombre))
+
+
+def abrir_carpeta() -> None:
+    """Abre la carpeta de la bóveda en el Explorador de Windows."""
+    DIR_BOVEDA.mkdir(parents=True, exist_ok=True)
+    if hasattr(os, "startfile"):
+        os.startfile(str(DIR_BOVEDA))  # type: ignore[attr-defined]  # noqa: S606

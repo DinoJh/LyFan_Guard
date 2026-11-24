@@ -7,14 +7,13 @@
   const panel = $('ajustes');
 
   // ================================================================== navegación
-  const TITULOS = { menu: 'Configuración', tamano: 'Tamaño', mic: 'Micrófono', voz: 'Voces', boveda: 'Bóveda' };
+  const TITULOS = { menu: 'Configuración', tamano: 'Tamaño', mic: 'Micrófono', voz: 'Voces' };
   function ir(vista) {
     panel.querySelectorAll('.aj-vista').forEach(v => { v.hidden = v.dataset.vista !== vista; });
     $('aj-titulo').textContent = TITULOS[vista];
     $('aj-atras').hidden = vista === 'menu';
     panel.querySelector('.aj-cuerpo').scrollTop = 0;
     if (vista === 'voz') cargarConfigVoz();
-    if (vista === 'boveda' && window.LyFanBoveda) window.LyFanBoveda.abrir();
     resumenes();
   }
   function abrir() { App.cerrarPaneles(); panel.hidden = false; ir('menu'); }
@@ -191,7 +190,6 @@
   $('aj-el-guardar').addEventListener('click', () => guardarEleven(false));
   $('aj-el-borrar').addEventListener('click', () => guardarEleven(true));
 
-  window.LyFanAjustes = { abrir, ir };
   // ================================================================== arranque
   pintarMicrofono(); pintarVoces(); resumenes();
 })();

@@ -62,10 +62,15 @@ En los modos 2 y 3 el botón del micrófono se pone verde mientras escucha, rojo
 Además: **volumen**, **velocidad** (en Dave), **efecto robot** (de 0 a 100) y **Probar voz**. Si ElevenLabs falla (clave vencida, sin créditos o sin internet), LyFan cambia solo a Dave y lo avisa; si tampoco está disponible, usa la voz de Windows. A las voces en línea solo se les envía la frase que va a decir, sin los enlaces.
 
 ## Bóveda (archivos cifrados)
-Engranaje → **Bóveda**. La primera vez se crea una **contraseña maestra** (mínimo 8 caracteres; **si se olvida, los archivos no se pueden recuperar**). Los archivos viven en `Documentos\LyFan Bóveda` (cambiable con `LYFAN_BOVEDA`).
-- **Arrastrar y soltar** un archivo sobre LyFan (o usar *Elegir archivos…*) lo copia a la bóveda; luego **Cifrar** lo guarda como `nombre.ext.lyfan` (AES-256-GCM por bloques, clave derivada con scrypt; el nombre original también va cifrado) y borra el original solo después de comprobar que se descifra bien.
-- **Descifrar** devuelve el archivo original. **Analizar** revisa archivos de texto sin cifrar (números de tarjeta, contraseñas, correos y señales de estafa), todo en el equipo.
-- La contraseña se escribe solo en ese panel: nunca por voz ni por el chat, y no se guarda en disco. La bóveda se bloquea sola a los 10 minutos.
+La carpeta `Documentos\LyFan Bóveda` (cambiable con `LYFAN_BOVEDA`) es el lugar de trabajo: LyFan encuentra ahí los archivos por su nombre, así que no hay que decirle rutas. Se abre en una **pantalla completa estilo consola** (engranaje → *Bóveda*, o a pedido de LyFan).
+
+**Por voz o chat** (la contraseña nunca se dice: se escribe en la ventana central):
+- «En nuestra carpeta tenemos un documento llamado trabajo, quiero que lo encriptes» → el archivo se cifra (`trabajo.docx.lyfan`, AES-256-GCM) y **desaparece de la carpeta**. Si es la primera vez, LyFan pide crear la contraseña maestra y después cifra.
+- «Muéstrame en la pantalla qué archivos tenemos encriptados» (también «en claro» o «todos»).
+- «Desencripta trabajo» → «Claro, señor, introduzca la contraseña»: aparece la ventana para escribirla y solo si es correcta se descifra. **Descifrar siempre pide la contraseña.**
+- «Analiza este .bat y dime si es sospechoso», «revisa el txt», «léeme saludo». Revisa scripts (.bat, .ps1, .vbs, .js…), texto con datos sensibles (tarjetas, claves) y archivos engañosos (doble extensión); solo lee, nunca ejecuta, y todo ocurre en el equipo.
+
+**A mano**: arrastrar archivos sobre la pantalla (o *+ Agregar*), botones *Cifrar / Descifrar / Analizar / Ver*, filtros Todos · Cifrados · En claro, buscador, *Abrir carpeta* y *Bloquear*. La clave maestra se deriva con scrypt, vive solo en memoria y se borra a los 10 minutos; el original se borra únicamente después de comprobar que el cifrado se descifra bien. **Si se olvida la contraseña, nadie puede recuperar los archivos.**
 
 ## Expresiones
 

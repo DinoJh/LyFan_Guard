@@ -16,7 +16,7 @@ const MARGEN = 16;
 let tam = { ancho: 380, alto: 520, robot: 300 };   // tamaño de la ventana según el tamaño de LyFan
 const ATAJO = 'Control+Alt+L';
 
-let ventana = null, bandeja = null, backend = null, arrastre = null, salir = false, temporizadorCursor = null;
+let vBoveda = null, ventana = null, bandeja = null, backend = null, arrastre = null, salir = false, temporizadorCursor = null;
 const archivoPosicion = () => path.join(app.getPath('userData'), 'ventana.json');
 
 // Una sola copia de LyFan a la vez
@@ -94,6 +94,7 @@ function crearVentana() {
     Menu.buildFromTemplate([
       { label: 'Escribirle a LyFan', click: () => enfocarEntrada() },
       { label: 'Analizar el portapapeles', click: () => ventana.webContents.send('accion', 'analizar-portapapeles') },
+      { label: 'Abrir la bóveda', click: () => abrirBoveda(null) },
       { label: 'Expresión', submenu: [['idle', 'Reposo'], ['listen', 'Escuchando'], ['curious', 'Curioso'], ['wink', 'Guiño'], ['scan', 'Analizar'], ['scanTalk', 'Analizar hablando'], ['alert', 'Alerta'], ['alertTalk', 'Alerta hablando'], ['sleep', 'Dormir'], ['happy', 'Kawaii'], ['talk', 'Hablando'], ['work', 'Trabajando'], ['workTalk', 'Trabajando hablando']]
         .map(([id, nombre]) => ({ label: nombre, click: () => ventana.webContents.send('accion', 'expresion:' + id) })) },
       { type: 'separator' },
@@ -127,6 +128,7 @@ function crearBandeja() {
   bandeja.setContextMenu(Menu.buildFromTemplate([
     { label: 'Mostrar a LyFan', click: () => mostrar() },
     { label: 'Escribirle (Ctrl+Alt+L)', click: () => enfocarEntrada() },
+    { label: 'Abrir la bóveda', click: () => abrirBoveda(null) },
     { label: 'Ocultar', click: () => ventana && ventana.hide() },
     { label: 'Abrir en el navegador', click: () => shell.openExternal(`${URL_BASE}/overlay.html`) },
     { type: 'separator' },
@@ -166,6 +168,28 @@ ipcMain.on('ignorar-mouse', (_e, ignorar) => { if (ventana) ventana.setIgnoreMou
 ipcMain.on('ocultar', () => ventana && ventana.hide());
 ipcMain.handle('leer-portapapeles', () => clipboard.readText());
 
+
+// ----------------------------------------------------------------- pantalla de la Bóveda (ventana grande, sin marco)
+function abrirBoveda(tarea) {
+  if (vBoveda && !vBoveda.isDestroyed()) { if (vBoveda.isMinimized()) vBoveda.restore(); vBoveda.show(); vBoveda.focus(); return; }
+  const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  vBoveda = new BrowserWindow({
+    x: wa.x, y: wa.y, width: wa.width, height: wa.height,
+    transparent: true, frame: false, hasShadow: false, resizable: false, maximizable: false, fullscreenable: false,
+    backgroundColor: '#00000000', title: 'LyFan · Bóveda', show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  vBoveda.setMenuBarVisibility(false);
+  let hash = '';
+  try { if (tarea && typeof tarea === 'object') { const t = JSON.stringify(tarea); if (t.length < 4000) hash = '#t=' + encodeURIComponent(t); } } catch { /* sin pedido */ }
+  vBoveda.loadURL(`${URL_BASE}/boveda.html${hash}`);
+  vBoveda.once('ready-to-show', () => { vBoveda.show(); vBoveda.focus(); });
+  vBoveda.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  vBoveda.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(URL_BASE)) e.preventDefault(); });
+  vBoveda.on('closed', () => { vBoveda = null; });
+}
+ipcMain.on('abrir-boveda', (_e, tarea) => abrirBoveda(tarea));
+
 // ----------------------------------------------------------------- arranque
 app.whenReady().then(async () => {
   const bien = await iniciarBackend();
@@ -192,9 +216,17 @@ app.whenReady().then(async () => {
                 catch (e) { acceso = e.name; }
                 return { dispositivos: ds, acceso, voz: typeof window.LyFanVoz, sintesis: typeof speechSynthesis }; }
           catch (e) { return { error: String(e) }; } })()`);
+        if (process.env.LYFAN_BOVEDA_CAPTURA) {      // prueba: abre la pantalla de la bóveda y la captura
+          abrirBoveda({ accion: 'mostrar', filtro: 'todos', id: 'prueba' });
+          await new Promise(r => setTimeout(r, 4500));
+          if (vBoveda) {
+            fs.writeFileSync(process.env.LYFAN_BOVEDA_CAPTURA, (await vBoveda.webContents.capturePage()).toPNG());
+            fs.writeFileSync(process.env.LYFAN_BOVEDA_CAPTURA + '.json', JSON.stringify({ bounds: vBoveda.getBounds(), transparente: true }));
+          }
+        }
         const info = { transparente: true, siempreArriba: ventana.isAlwaysOnTop(), bounds: ventana.getBounds(), mic };
         fs.writeFileSync(process.env.LYFAN_CAPTURA + '.json', JSON.stringify(info));
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error(e); try { fs.writeFileSync((process.env.LYFAN_BOVEDA_CAPTURA || process.env.LYFAN_CAPTURA) + '.err', String(e && e.stack || e)); } catch { /* nada */ } }
       salir = true; app.quit();
     }, Number(process.env.LYFAN_CAPTURA_MS || 7000));
   }

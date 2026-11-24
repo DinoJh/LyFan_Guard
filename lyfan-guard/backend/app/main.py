@@ -229,6 +229,20 @@ async def boveda_analizar(c: ArchivoIn):
         return _error_boveda(e)
 
 
+@app.post("/api/boveda/leer")
+async def boveda_leer(c: ArchivoIn):
+    try:
+        return await asyncio.to_thread(boveda.leer, c.nombre)
+    except boveda.ErrorBoveda as e:
+        return _error_boveda(e)
+
+
+@app.post("/api/boveda/abrir-carpeta")
+async def boveda_abrir_carpeta():
+    await asyncio.to_thread(boveda.abrir_carpeta)
+    return {"ok": True}
+
+
 @app.get("/api/salud")
 async def salud():
     return {"servicio": "LyFan Guard", "version": app.version, **await llm.salud(OLLAMA_URL, MODELO)}
