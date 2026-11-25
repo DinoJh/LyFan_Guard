@@ -80,6 +80,7 @@
     talk: 'Se lo explico con calma, señor.',
     work: 'Manos al teclado, señor. Estoy en ello.',
     workTalk: 'Sigo trabajando, señor. Le cuento cómo vamos.',
+    thinking: 'Mmm… déjeme pensar un momento.',
     encrypt: 'Estoy cifrando. Un momento…',
     decrypt: 'Estoy descifrando. Un momento…',
   };
@@ -90,13 +91,13 @@
   // Al hablar: con riesgo, «Alerta hablando»; al explicar un análisis tranquilo, «Analizar hablando»;
   // si todavía está generando la respuesta, «Trabajando hablando»; si no, «Hablando».
   // Tareas de la bóveda: al cifrar, «Cifrar»; al descifrar, «Descifrar»; al analizar, «Analizar hablando»; si hallan algo malo, «Alerta hablando».
-  let poseDeTarea = null, ctxHabla = null, vencePose = 0;
+  let poseDeTarea = null, ctxHabla = null, vencePose = 0, analizandoAhora = false;
   const poseHablando = (n, trabajando) => {
     if (n === 'alerta' || n === 'peligro') return 'alertTalk';
     const t = (ctxHabla && ctxHabla.tarea) || poseDeTarea;
     if (t === 'encrypt' || t === 'decrypt') return t;
     if (t === 'scan') return 'scanTalk';
-    return n === 'tranquilo' ? 'scanTalk' : trabajando ? 'scanTalk' : 'talk';
+    return n === 'tranquilo' ? 'scanTalk' : (trabajando && analizandoAhora) ? 'scanTalk' : 'talk';
   };
   const TEXTO_TAREA = { encrypt: 'Cifrando, un momento…', decrypt: 'Descifrando, un momento…', scan: 'Analizando el archivo, un momento…' };
   function poseTarea(p) {                                    // la pantalla de la bóveda avisa qué está haciendo
@@ -226,7 +227,8 @@
 
     const analiza = forzarAnalisis || URL_RE.test(texto);
     const inicio = performance.now();
-    pose('scan');
+    analizandoAhora = analiza;
+    pose(analiza ? 'scan' : 'thinking');                     // pensando su respuesta; si revisa un mensaje o enlace, escaneando
     decir((viaVoz ? 'Escuché: «' + texto + '». ' : '') + (analiza ? 'Permítame revisar esto con cuidado, señor…' : 'Un momento, señor…'));
     const previo = historial.slice(-8).map(m => ({ rol: m.rol, texto: m.texto }));
     agregarMensaje('usuario', texto);
@@ -271,7 +273,7 @@
           } else if (ev.tipo === 'token') {
             if (primerTrozo) {
               primerTrozo = false; acumulado = '';
-              if (!V.prefs.activa) pose(poseHablando(nivel, true)); else if (!nivel) pose('scan');   // con voz, la boca se mueve cuando suena el audio
+              if (!V.prefs.activa) pose(poseHablando(nivel, true)); else if (!nivel) pose(analiza ? 'scan' : 'thinking');   // con voz, la boca se mueve cuando suena el audio
             }
             acumulado += ev.texto;
             const vis = procesarAlerta(acumulado, texto);

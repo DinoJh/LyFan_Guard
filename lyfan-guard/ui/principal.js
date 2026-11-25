@@ -32,7 +32,7 @@
   const NOMBRES_POSE = {
     idle: 'En reposo', listen: 'Escuchando', curious: 'Curioso', wink: 'Todo en orden', scan: 'Analizando', scanTalk: 'Analizando',
     alert: 'Alerta', alertTalk: 'Alerta', sleep: 'Descansando', happy: 'Contento', talk: 'Hablando', work: 'Trabajando',
-    workTalk: 'Trabajando', encrypt: 'Cifrando', decrypt: 'Descifrando',
+    workTalk: 'Trabajando', encrypt: 'Cifrando', decrypt: 'Descifrando', thinking: 'Pensando',
   };
   function ponerPose(p) {
     if (!p) return;

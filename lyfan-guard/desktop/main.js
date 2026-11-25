@@ -96,7 +96,7 @@ function crearVentana() {
       { label: 'Analizar el portapapeles', click: () => ventana.webContents.send('accion', 'analizar-portapapeles') },
       { label: 'Abrir la bóveda', click: () => abrirBoveda(null) },
       { label: 'Ventana principal', click: () => abrirPrincipal() },
-      { label: 'Expresión', submenu: [['idle', 'Reposo'], ['listen', 'Escuchando'], ['curious', 'Curioso'], ['wink', 'Guiño'], ['scan', 'Analizar'], ['scanTalk', 'Analizar hablando'], ['alert', 'Alerta'], ['alertTalk', 'Alerta hablando'], ['sleep', 'Dormir'], ['happy', 'Kawaii'], ['talk', 'Hablando'], ['work', 'Trabajando'], ['workTalk', 'Trabajando hablando']]
+      { label: 'Expresión', submenu: [['idle', 'Reposo'], ['listen', 'Escuchando'], ['curious', 'Curioso'], ['wink', 'Guiño'], ['scan', 'Analizar'], ['scanTalk', 'Analizar hablando'], ['alert', 'Alerta'], ['alertTalk', 'Alerta hablando'], ['sleep', 'Dormir'], ['happy', 'Kawaii'], ['talk', 'Hablando'], ['work', 'Trabajando'], ['workTalk', 'Trabajando hablando'], ['thinking', 'Pensando'], ['encrypt', 'Cifrar'], ['decrypt', 'Descifrar']]
         .map(([id, nombre]) => ({ label: nombre, click: () => ventana.webContents.send('accion', 'expresion:' + id) })) },
       { type: 'separator' },
       { label: 'Ocultar', click: () => ventana.hide() },
