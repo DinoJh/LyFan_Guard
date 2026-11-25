@@ -519,7 +519,7 @@
 
   // ================================================================== antivirus en segundo plano
   // De vez en cuando (y solo si LyFan está libre) revisa la carpeta de la bóveda. Si encuentra algo nuevo, se pone en alerta y avisa.
-  const AV = { primeraS: 90, cadaMin: 6 };
+  const AV = { primeraS: 20, cadaS: 30 };          // cada vuelta solo mira lo nuevo y lo revisa por partes
   const avActivo = () => { try { return localStorage.getItem('lyfan-antivirus-auto') !== 'no'; } catch { return true; } };
   async function escaneoSilencioso() {
     if (!avActivo() || ocupado || hablando() || oyendo()) return;
@@ -538,7 +538,7 @@
       responder(texto, { tarea: 'scan', nivel });
     } catch { /* el servidor no respondió; se intenta en la próxima vuelta */ }
   }
-  setTimeout(() => { escaneoSilencioso(); setInterval(escaneoSilencioso, AV.cadaMin * 60000); }, AV.primeraS * 1000);
+  setTimeout(() => { escaneoSilencioso(); setInterval(escaneoSilencioso, AV.cadaS * 1000); }, AV.primeraS * 1000);
 
   // ================================================================== ¿esta página es segura?
   const RE_PAGINA = /\b(esta|esa|la|mi|aquella) (pagina|web|pagina web|sitio|sitio web|url|direccion)\b|\ben que (pagina|web|sitio) estoy\b|\b(pagina|web|sitio) (que|donde) (estoy|tengo abiert\w*|abri)\b|\b(navegador|pestana)\b/;

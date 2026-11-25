@@ -50,10 +50,24 @@ def _id_valido(id_: str) -> str:
     return id_
 
 
+def _ruta_en_boveda(nombre: str) -> Path:
+    """«archivo.bat» o «subcarpeta/archivo.bat», siempre dentro de la bóveda."""
+    if "/" not in nombre and "\\" not in nombre:
+        return boveda._ruta_revisable(nombre)
+    partes = [p for p in nombre.replace("\\", "/").split("/") if p]
+    if not partes or any(p in (".", "..") or ":" in p or p.startswith(".") for p in partes):
+        raise boveda.ErrorBoveda("Nombre de archivo no válido.")
+    base = boveda.DIR_BOVEDA.resolve()
+    ruta = base.joinpath(*partes).resolve()
+    if not ruta.is_relative_to(base) or not ruta.is_file() or ruta.suffix == boveda.EXT:
+        raise boveda.ErrorBoveda("Ese archivo no existe en la bóveda.")
+    return ruta
+
+
 def poner(nombre: str) -> dict:
     """Aísla un archivo (sin cifrar) de la carpeta de la bóveda."""
     from .analisis_archivo import analizar_archivo  # noqa: PLC0415
-    ruta = boveda._ruta_revisable(nombre)            # solo archivos de la bóveda, sin rutas raras
+    ruta = _ruta_en_boveda(nombre)                   # solo archivos de la bóveda (o sus subcarpetas), sin rutas raras
     if ruta.stat().st_size > 200 * 1024 * 1024:
         raise ErrorCuarentena("El archivo es demasiado grande para la cuarentena (más de 200 MB).")
     try:

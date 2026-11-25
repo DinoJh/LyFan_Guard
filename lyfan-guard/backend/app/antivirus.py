@@ -14,7 +14,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
+import threading
 import time
 import zipfile
 from pathlib import Path
@@ -34,8 +36,6 @@ FIRMAS_SHA256 = {
 
 # (patrón en bytes, peso, razón, familia)
 _BIN_REGLAS: list[tuple[bytes, int, str, str]] = [
-    (rb"(?=.*virtualallocex)(?=.*writeprocessmemory)(?=.*createremotethread)", 45,
-     "Puede inyectar código dentro de otros programas", "Trojan.Injector"),
     (rb"getasynckeystate|setwindowshookex", 25, "Puede registrar las teclas que usted presiona", "Spyware.Keylogger"),
     (rb"urldownloadtofile|internetopenurl|winhttpopen", 20, "Descarga archivos desde internet", "Trojan.Downloader"),
     (rb"software\\microsoft\\windows\\currentversion\\run", 25, "Se instala para arrancar solo con Windows", "Trojan.Persistence"),
@@ -47,7 +47,27 @@ _BIN_REGLAS: list[tuple[bytes, int, str, str]] = [
     (rb"login data|logins\.json|wallet\.dat|\\local state", 35, "Busca contraseñas o billeteras guardadas en el navegador", "Spyware.Stealer"),
     (rb"discord(?:app)?\.com/api/webhooks|api\.telegram\.org/bot", 35, "Envía datos a Discord o Telegram", "Spyware.Stealer"),
 ]
-_BIN_REGLAS_RX = [(re.compile(p, re.I | re.S), w, r, f) for p, w, r, f in _BIN_REGLAS]
+_BIN_REGLAS_RX = [(re.compile(p, re.I), w, r, f) for p, w, r, f in _BIN_REGLAS]
+_INYECCION = (b"virtualallocex", b"writeprocessmemory", b"createremotethread")   # las tres juntas = inyección de código
+TROZO = 1024 * 1024          # los programas grandes se revisan por partes de 1 MB
+
+
+def _reglas_por_partes(datos: bytes) -> list[tuple[int, str, str]]:
+    """Busca las pistas de virus trozo por trozo (tiempo lineal) y cede el procesador entre trozos,
+    para que LyFan siga respondiendo mientras revisa archivos grandes."""
+    vistas: dict[int, tuple[int, str, str]] = {}
+    apis: set[bytes] = set()
+    for i in range(0, max(1, len(datos)), TROZO):
+        s = _cadenas(datos[max(0, i - 256): i + TROZO])
+        apis.update(a for a in _INYECCION if a in s)
+        for k, (rx, peso, razon, fam) in enumerate(_BIN_REGLAS_RX):
+            if k not in vistas and rx.search(s):
+                vistas[k] = (peso, razon, fam)
+        time.sleep(0.002)
+    salida = list(vistas.values())
+    if len(apis) == len(_INYECCION):
+        salida.insert(0, (45, "Puede inyectar código dentro de otros programas", "Trojan.Injector"))
+    return salida
 _EXT_PROGRAMA = {".exe", ".scr", ".dll", ".com", ".pif", ".cpl", ".sys", ".msi"}
 _EXT_PELIGROSAS_ZIP = {".exe", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".hta", ".lnk", ".pif", ".com", ".msi", ".wsf", ".jar", ".iso", ".img"}
 _EXT_OFFICE_ZIP = {".docx", ".docm", ".xlsx", ".xlsm", ".pptx", ".pptm", ".dotm", ".xltm"}
@@ -73,11 +93,9 @@ def _cadenas(datos: bytes) -> bytes:
 def entropia(datos: bytes) -> float:
     if not datos:
         return 0.0
-    cuenta = [0] * 256
-    for b in datos:
-        cuenta[b] += 1
+    from collections import Counter  # noqa: PLC0415
     n = len(datos)
-    return -sum(c / n * math.log2(c / n) for c in cuenta if c)
+    return -sum(c / n * math.log2(c / n) for c in Counter(datos).values())
 
 
 def familia_de(razones: list[str], nivel: str) -> str | None:
@@ -104,11 +122,19 @@ def _resultado(puntos: int, razones: list[str], familia: str | None = None, firm
             "deteccion": deteccion, "motor": MOTOR}
 
 
+_EICAR_MARCA = b"EICAR-STANDARD-ANTIVIRUS-TEST-FILE"
+_EICAR_INICIO = b"X5O!P%@AP[4"
+
+
 def buscar_firmas(datos: bytes, sha: str | None) -> str | None:
+    """Firmas conocidas. EICAR se busca en TODO el archivo leído (en un programa compilado está en medio)
+    y también se detectan programas o códigos que lo crean (el texto partido en dos, como en C/C++)."""
     if sha and sha in FIRMAS_SHA256:
         return FIRMAS_SHA256[sha]
-    if EICAR in datos[:65536]:
+    if EICAR in datos:
         return "EICAR-Test-File"
+    if _EICAR_MARCA in datos and _EICAR_INICIO in datos:
+        return "EICAR-Test-File.Dropper"
     return None
 
 
@@ -123,10 +149,8 @@ def analizar_binario(ruta: Path, datos: bytes, engano: bool) -> dict:
     if es_pe:
         if ext not in _EXT_PROGRAMA:
             puntos += 50; razones.append("Es un programa disfrazado con otra extensión"); familia = familia or "Trojan.Masquerade"
-        s = _cadenas(datos)
-        for rx, peso, razon, fam in _BIN_REGLAS_RX:
-            if rx.search(s):
-                puntos += peso; razones.append(razon); familia = familia or fam
+        for peso, razon, fam in _reglas_por_partes(datos):
+            puntos += peso; razones.append(razon); familia = familia or fam
         if b"upx0" in datos[:4096].lower() or b"upx!" in datos[:4096].lower():
             puntos += 12; razones.append("Está empaquetado (UPX), una forma de esconder su código")
         ent = entropia(datos[:1024 * 1024])
@@ -245,26 +269,65 @@ def permitir(sha: str) -> None:
         _guardar_estado(e)
 
 
-def escanear(solo_nuevos: bool = False) -> dict:
-    """Revisa la carpeta de la bóveda (solo archivos sin cifrar). Lo que no cambió no se vuelve a analizar.
-    nuevos = hallazgos que todavía no se le avisaron a la persona."""
+VERSION_MOTOR = 2           # súbalo cuando cambien las reglas, para re-analizar lo ya revisado
+MAX_ARCHIVOS = 3000          # tope de archivos que se miran en la carpeta y sus subcarpetas
+MAX_PROFUNDIDAD = 8
+_bloqueo_escaneo = threading.Lock()
+
+
+def archivos_de_boveda() -> list[tuple[str, Path]]:
+    """(nombre relativo, ruta) de los archivos sin cifrar de la bóveda y de TODAS sus subcarpetas."""
     from . import boveda  # noqa: PLC0415
+    base = boveda.DIR_BOVEDA
+    salida: list[tuple[str, Path]] = []
+    if not base.exists():
+        return salida
+    for raiz, dirs, archivos in os.walk(base):
+        rel = Path(raiz).relative_to(base)
+        if len(rel.parts) >= MAX_PROFUNDIDAD:
+            dirs[:] = []
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        for a in sorted(archivos, key=str.lower):
+            if a.startswith(".") or a.endswith(boveda.EXT) or a == boveda.ARCHIVO_CONFIG:
+                continue
+            salida.append(((rel / a).as_posix(), Path(raiz) / a))
+            if len(salida) >= MAX_ARCHIVOS:
+                return salida
+    return salida
+
+
+def escanear(solo_nuevos: bool = False, max_archivos: int = 6, max_segundos: float = 4.0) -> dict:
+    """Revisa la bóveda y sus subcarpetas (solo archivos sin cifrar). Lo que no cambió no se vuelve a analizar.
+    Trabaja por partes: en cada vuelta analiza pocos archivos nuevos y deja el resto para la siguiente.
+    nuevos = hallazgos que todavía no se le avisaron a la persona."""
     from .analisis_archivo import analizar_archivo  # noqa: PLC0415
+    with _bloqueo_escaneo:                                 # nunca dos escaneos a la vez
+        return _escanear(analizar_archivo, solo_nuevos, max_archivos, max_segundos)
+
+
+def _escanear(analizar_archivo, solo_nuevos: bool, max_archivos: int, max_segundos: float) -> dict:
     e = _leer_estado()
     previos, permitidos = e.get("archivos", {}), set(e.get("permitidos", []))
-    actuales, hallazgos, nuevos, revisados = {}, [], [], 0
-    carpeta = boveda.DIR_BOVEDA
-    if carpeta.exists():
-        for p in sorted(carpeta.iterdir(), key=lambda x: x.name.lower()):
-            if not p.is_file() or p.name.startswith(".") or p.suffix == boveda.EXT or p.name == boveda.ARCHIVO_CONFIG:
+    if e.get("version") != VERSION_MOTOR:              # el motor mejoró: se vuelve a revisar todo una vez
+        previos = {}
+        e["version"] = VERSION_MOTOR
+    actuales, hallazgos, nuevos, revisados, pendientes = {}, [], [], 0, 0
+    inicio = time.monotonic()
+    if True:
+        for nombre_rel, p in archivos_de_boveda():
+            try:
+                st = p.stat()
+            except OSError:
                 continue
-            st = p.stat()
             if st.st_size > MAX_ESCANEO:
                 continue
             clave = f"{st.st_size}:{int(st.st_mtime)}"
-            ant = previos.get(p.name)
+            ant = previos.get(nombre_rel)
             if ant and ant.get("clave") == clave:
                 info = ant
+            elif revisados >= max_archivos or time.monotonic() - inicio > max_segundos:
+                pendientes += 1                         # se revisa en la próxima vuelta
+                continue
             else:
                 try:
                     r = analizar_archivo(p)
@@ -276,9 +339,9 @@ def escanear(solo_nuevos: bool = False) -> dict:
                 info = {"clave": clave, "nivel": g.get("nivel", "tranquilo"), "puntaje": g.get("puntaje", 0),
                         "razones": g.get("razones", [])[:3], "deteccion": g.get("deteccion"), "sha256": r.get("sha256") or _sha(p),
                         "avisado": False}
-            actuales[p.name] = info
+            actuales[nombre_rel] = info
             if info["nivel"] != "tranquilo" and (info.get("sha256") or "") not in permitidos:
-                h = {"nombre": p.name, **{k: info.get(k) for k in ("nivel", "puntaje", "razones", "deteccion")}}
+                h = {"nombre": nombre_rel, **{k: info.get(k) for k in ("nivel", "puntaje", "razones", "deteccion")}}
                 hallazgos.append(h)
                 if not info.get("avisado"):
                     nuevos.append(h); info["avisado"] = True
@@ -287,7 +350,7 @@ def escanear(solo_nuevos: bool = False) -> dict:
     orden = {"peligro": 0, "alerta": 1}
     hallazgos.sort(key=lambda h: (orden.get(h["nivel"], 2), -h["puntaje"]))
     nuevos.sort(key=lambda h: (orden.get(h["nivel"], 2), -h["puntaje"]))
-    return {"revisados": revisados, "total": len(actuales), "hallazgos": hallazgos,
+    return {"revisados": revisados, "pendientes": pendientes, "total": len(actuales) + pendientes, "hallazgos": hallazgos,
             "nuevos": nuevos if solo_nuevos else hallazgos, "motor": MOTOR}
 
 

@@ -96,8 +96,13 @@ def analizar_archivo(ruta: Path) -> dict:
     huella = sha256(ruta)
     firma = antivirus.buscar_firmas(datos, huella)
     if firma:                                             # coincide con una firma conocida (por ejemplo, EICAR)
-        r = antivirus._resultado(100, [f"Coincide con la firma {firma}: el archivo de prueba estándar que todo antivirus debe detectar"
-                                       if firma.startswith("EICAR") else f"Coincide con la firma conocida {firma}"], firma=firma)
+        if firma == "EICAR-Test-File.Dropper":
+            razon = "Contiene y crea el archivo de prueba EICAR: un programa hecho para poner a prueba a los antivirus"
+        elif firma.startswith("EICAR"):
+            razon = f"Coincide con la firma {firma}: el archivo de prueba estándar que todo antivirus debe detectar"
+        else:
+            razon = f"Coincide con la firma conocida {firma}"
+        r = antivirus._resultado(100, [razon], firma=firma)
         return {**base, "revisable": ext in EXT_SCRIPT or ext in EXT_TEXTO, "tipo": "firma", "sha256": huella, "riesgo": r}
     if ext in EXT_SCRIPT or ext in EXT_TEXTO:
         texto = ruta.read_text(encoding="utf-8", errors="replace")[:MAX_ANALIZAR]

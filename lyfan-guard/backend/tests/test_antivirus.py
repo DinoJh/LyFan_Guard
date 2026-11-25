@@ -103,3 +103,44 @@ def test_cuarentena_eliminar_y_ids_invalidos():
     assert cuarentena.listar() == []
     with pytest.raises(boveda.ErrorBoveda):
         cuarentena.poner("../fuera.txt")
+
+
+def test_programa_grande_se_revisa_rapido_y_por_partes():
+    import time
+    f = boveda.DIR_BOVEDA / "grande.exe"
+    relleno = bytes(range(256)) * 16000                     # ~4 MB de datos variados
+    f.write_bytes(b"MZ" + relleno + b"VirtualAllocEx\x00" + relleno + b"WriteProcessMemory\x00CreateRemoteThread\x00")
+    t = time.monotonic()
+    r = aa.analizar_archivo(f)["riesgo"]
+    assert time.monotonic() - t < 5                          # antes congelaba el servidor
+    assert "inyectar" in " ".join(r["razones"])
+
+
+def test_escaneo_entra_a_subcarpetas_y_trabaja_por_partes():
+    sub = boveda.DIR_BOVEDA / "descargas" / "juegos"
+    sub.mkdir(parents=True)
+    (sub / "crack.bat").write_text("vssadmin delete shadows /all /quiet", encoding="utf-8")
+    for i in range(5):
+        (boveda.DIR_BOVEDA / f"nota{i}.txt").write_text("hola", encoding="utf-8")
+    r1 = antivirus.escanear(solo_nuevos=True, max_archivos=2)
+    assert r1["revisados"] == 2 and r1["pendientes"] == 4    # por partes: el resto queda para la próxima vuelta
+    vistos = []
+    for _ in range(4):
+        vistos += [h["nombre"] for h in antivirus.escanear(solo_nuevos=True, max_archivos=2)["nuevos"]]
+    assert "descargas/juegos/crack.bat" in vistos
+    meta = cuarentena.poner("descargas/juegos/crack.bat")
+    assert not (sub / "crack.bat").exists()
+    cuarentena.restaurar(meta["id"])
+    assert (sub / "crack.bat").exists()
+    with pytest.raises(boveda.ErrorBoveda):
+        cuarentena.poner("descargas/../../fuera.bat")
+
+
+def test_eicar_dentro_de_un_programa_grande_y_su_codigo_fuente():
+    exe = boveda.DIR_BOVEDA / "EICAR.exe"
+    exe.write_bytes(b"MZ" + b"\x00" * 300_000 + EICAR + b"\x00" * 1000)   # la firma está lejos del inicio
+    assert aa.analizar_archivo(exe)["riesgo"]["deteccion"] == "EICAR-Test-File"
+    cpp = boveda.DIR_BOVEDA / "Virus_EICAR.cpp"
+    cpp.write_text('archivo << "X5O!P%@AP[4\\PZX54(P^)7CC)7}$"\n  "EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";', encoding="utf-8")
+    r = aa.analizar_archivo(cpp)["riesgo"]
+    assert r["nivel"] == "peligro" and r["deteccion"] == "EICAR-Test-File.Dropper"

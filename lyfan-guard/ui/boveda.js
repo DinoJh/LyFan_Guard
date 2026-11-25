@@ -160,6 +160,7 @@
       const sin = (est.archivos || []).filter(a => !a.cifrado);
       let objetivo = elegir(texto, sin);
       if (!objetivo.length && ultimos.length) objetivo = sin.filter(a => ultimos.includes(base(a.nombre)));
+      if (!objetivo.length && ultimasRutas.length && !elegir(texto, sin).length) objetivo = ultimasRutas.map(nombre => ({ nombre }));
       if (!objetivo.length) return sin.length ? `¿Qué archivo pongo en cuarentena? Tiene: ${lista && sin.slice(0, 5).map(a => a.nombre).join(', ')}.` : 'No hay archivos sin cifrar para aislar, señor.';
       if (objetivo.length > 1 && !RE_TODO.test(n)) return `Hay varios que coinciden: ${objetivo.slice(0, 5).map(a => a.nombre).join(', ')}. ¿Cuál de ellos?`;
       const hechos = [];
@@ -167,7 +168,8 @@
       if (!hechos.length) return 'No pude ponerlo en cuarentena, señor.';
       return `${listo()} aislé ${hechos.join(', ')} en cuarentena: ya no puede abrirse ni ejecutarse. Si fue una falsa alarma, dígame «sácalo de cuarentena».`;
     }
-    if (RE_ESCANEO.test(n) && !elegir(texto, ((await api('').catch(() => ({}))).archivos || [])).length) {
+    const sinPalabrasDeEscaneo = texto.replace(/\b(virus|malware|amenazas?|archivos?|todo|todos|carpeta|b[oó]veda|escane\w*|analiz\w*|revis\w*|busca\w*)\b/gi, ' ');
+    if (RE_ESCANEO.test(n) && !elegir(sinPalabrasDeEscaneo, ((await api('').catch(() => ({}))).archivos || [])).length) {
       if (App.poseTarea) App.poseTarea('scan');
       const r = await postJ('/api/antivirus/escanear', { solo_nuevos: false });
       if (App.poseTarea) App.poseTarea(null);
@@ -259,11 +261,11 @@
       else if (pool.length === 1) objetivo = pool;
       else if (!pool.length) return cifrar ? 'No hay archivos sin cifrar en su bóveda, señor. Arrástrelos sobre mí o colóquelos en su carpeta de la bóveda.' : descifrar ? 'No hay archivos cifrados en su bóveda, señor.' : 'No hay archivos sin cifrar para revisar, señor.';
       else {
-        abrirPantalla({ accion: 'mostrar', filtro: cifrar || analizar || leer ? 'claro' : 'cifrados' });
+        if (!analizar) abrirPantalla({ accion: 'mostrar', filtro: cifrar || leer ? 'claro' : 'cifrados' });   // para analizar no hace falta abrir la bóveda
         return `¿Cuál de ellos, señor? Tiene: ${lista(pool)}. Puede decirme el nombre o «todos».`;
       }
-    } else if (objetivo.length > 1 && !todos && !conj) {
-      abrirPantalla({ accion: 'mostrar', filtro: cifrar || analizar || leer ? 'claro' : 'cifrados' });
+    } else if (objetivo.length > 1 && !todos && !conj && !analizar) {          // analizar varios no tiene riesgo: se revisan todos
+      abrirPantalla({ accion: 'mostrar', filtro: cifrar || leer ? 'claro' : 'cifrados' });
       return `Hay varios que coinciden, señor: ${lista(objetivo)}. ¿Cuál de ellos?`;
     }
     const nombres = objetivo.map(a => a.nombre);
@@ -281,11 +283,31 @@
       return `${ok()} ${azar(['Introduzca la contraseña en la ventana', 'Escriba su contraseña en la ventana', 'Le abrí la ventana: escriba su contraseña'])} para descifrar ${que}.`;
     }
     if (leer) { abrirPantalla({ accion: 'ver', nombres }); return `Aquí tiene el contenido de ${que}, señor.`; }
-    abrirPantalla({ accion: 'analizar', nombres });
-    return `${ok()} ${azar(['Reviso', 'Analizo', 'Escaneo'])} ${que} en su equipo y le cuento qué encuentro.`;
+    // Analizar no necesita abrir la bóveda: LyFan revisa los archivos y lo cuenta
+    if (App.poseTarea) App.poseTarea('scan');
+    const partes = [], malos = [];
+    try {
+      for (const nombre of nombres.slice(0, 5)) {
+        try {
+          const r = await api('/analizar', { nombre });
+          const g = r.riesgo || (r.estafa && r.estafa.nivel !== 'tranquilo' ? r.estafa : null);
+          if (g && g.nivel !== 'tranquilo') {
+            malos.push(nombre);
+            const det = g.deteccion ? ` (${g.deteccion.replace(' (heurístico)', '')})` : '';
+            partes.push(`${nombre}${det} ${g.nivel === 'peligro' ? 'es peligroso' : 'es sospechoso'}: ${(g.razones || [])[0] || 'tiene señales raras'}`);
+          } else partes.push(`${nombre} no tiene señales de peligro${r.sensibles && r.sensibles.length ? ', pero contiene ' + r.sensibles.join(' y ') + '; le recomiendo cifrarlo' : ''}`);
+        } catch (e) { partes.push(`${nombre}: ${e.message}`); }
+      }
+    } finally { if (App.poseTarea) App.poseTarea(null); }
+    if (malos.length) {
+      ultimos = malos.map(base);
+      return `[ALERTA] ${azar(['Revisé', 'Analicé', 'Escaneé'])} ${que}. ${partes.join('. ')}. ¿${malos.length === 1 ? 'Lo' : 'Los'} pongo en cuarentena?`;
+    }
+    return `${ok()} ${azar(['Revisé', 'Analicé', 'Escaneé'])} ${que}: ${partes.join('. ')}.`;
   }
 
   // El escaneo automático le cuenta a la bóveda qué encontró, para entender «ponlo en cuarentena»
-  function recordar(nombres) { ultimos = (nombres || []).map(base); }
+  let ultimasRutas = [];
+  function recordar(nombres) { ultimos = (nombres || []).map(base); ultimasRutas = (nombres || []).filter(n => n.includes('/')); }
   window.LyFanBoveda = { comando, abrirPantalla, recordar };
 })();
