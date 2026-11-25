@@ -95,6 +95,7 @@ function crearVentana() {
       { label: 'Escribirle a LyFan', click: () => enfocarEntrada() },
       { label: 'Analizar el portapapeles', click: () => ventana.webContents.send('accion', 'analizar-portapapeles') },
       { label: 'Abrir la bóveda', click: () => abrirBoveda(null) },
+      { label: 'Ventana principal', click: () => abrirPrincipal() },
       { label: 'Expresión', submenu: [['idle', 'Reposo'], ['listen', 'Escuchando'], ['curious', 'Curioso'], ['wink', 'Guiño'], ['scan', 'Analizar'], ['scanTalk', 'Analizar hablando'], ['alert', 'Alerta'], ['alertTalk', 'Alerta hablando'], ['sleep', 'Dormir'], ['happy', 'Kawaii'], ['talk', 'Hablando'], ['work', 'Trabajando'], ['workTalk', 'Trabajando hablando']]
         .map(([id, nombre]) => ({ label: nombre, click: () => ventana.webContents.send('accion', 'expresion:' + id) })) },
       { type: 'separator' },
@@ -129,6 +130,7 @@ function crearBandeja() {
     { label: 'Mostrar a LyFan', click: () => mostrar() },
     { label: 'Escribirle (Ctrl+Alt+L)', click: () => enfocarEntrada() },
     { label: 'Abrir la bóveda', click: () => abrirBoveda(null) },
+    { label: 'Ventana principal', click: () => abrirPrincipal() },
     { label: 'Ocultar', click: () => ventana && ventana.hide() },
     { label: 'Abrir en el navegador', click: () => shell.openExternal(`${URL_BASE}/overlay.html`) },
     { type: 'separator' },
@@ -190,6 +192,30 @@ function abrirBoveda(tarea) {
 }
 ipcMain.on('abrir-boveda', (_e, tarea) => abrirBoveda(tarea));
 
+// ----------------------------------------------------------------- ventana principal (la «casa» de LyFan)
+// Mientras está abierta, la ventanita flotante se oculta: LyFan «se muda» a la ventana grande.
+// La ventanita sigue funcionando por detrás (voz, micrófono, bóveda e IA) y vuelve a aparecer al cerrarla.
+let vPrincipal = null;
+function abrirPrincipal() {
+  if (vPrincipal && !vPrincipal.isDestroyed()) { if (vPrincipal.isMinimized()) vPrincipal.restore(); vPrincipal.show(); vPrincipal.focus(); return; }
+  const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  const ancho = Math.min(1320, Math.round(wa.width * 0.86)), alto = Math.min(860, Math.round(wa.height * 0.9));
+  vPrincipal = new BrowserWindow({
+    x: wa.x + Math.round((wa.width - ancho) / 2), y: wa.y + Math.round((wa.height - alto) / 2), width: ancho, height: alto,
+    minWidth: 900, minHeight: 600, show: false, backgroundColor: '#0a1016', title: 'LyFan Guard',
+    titleBarStyle: 'hidden', titleBarOverlay: { color: '#0a1016', symbolColor: '#93a7b5', height: 44 },
+    icon: path.join(__dirname, 'assets', 'tray.png'),
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  vPrincipal.setMenuBarVisibility(false);
+  vPrincipal.loadURL(`${URL_BASE}/principal.html`);
+  vPrincipal.once('ready-to-show', () => { vPrincipal.show(); vPrincipal.focus(); if (ventana && ventana.isVisible()) ventana.hide(); });
+  vPrincipal.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  vPrincipal.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(URL_BASE)) e.preventDefault(); });
+  vPrincipal.on('closed', () => { vPrincipal = null; if (ventana && !salir) mostrar(); });
+}
+ipcMain.on('abrir-principal', () => abrirPrincipal());
+
 // ----------------------------------------------------------------- arranque
 app.whenReady().then(async () => {
   const bien = await iniciarBackend();
@@ -222,6 +248,15 @@ app.whenReady().then(async () => {
           if (vBoveda) {
             fs.writeFileSync(process.env.LYFAN_BOVEDA_CAPTURA, (await vBoveda.webContents.capturePage()).toPNG());
             fs.writeFileSync(process.env.LYFAN_BOVEDA_CAPTURA + '.json', JSON.stringify({ bounds: vBoveda.getBounds(), transparente: true }));
+          }
+        }
+        if (process.env.LYFAN_PRINCIPAL_CAPTURA) {   // prueba: abre la ventana principal y la captura
+          abrirPrincipal();
+          await new Promise(r => setTimeout(r, 6000));
+          if (vPrincipal) {
+            fs.writeFileSync(process.env.LYFAN_PRINCIPAL_CAPTURA, (await vPrincipal.webContents.capturePage()).toPNG());
+            fs.writeFileSync(process.env.LYFAN_PRINCIPAL_CAPTURA + '.json', JSON.stringify({ bounds: vPrincipal.getBounds(), robotVisible: ventana.isVisible(),
+              conectado: await vPrincipal.webContents.executeJavaScript("document.querySelector('.pet-phrase').textContent") }));
           }
         }
         const info = { transparente: true, siempreArriba: ventana.isAlwaysOnTop(), bounds: ventana.getBounds(), mic };

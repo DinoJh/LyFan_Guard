@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('lyfanDesktop', {
   ignorarMouse: ignorar => ipcRenderer.send('ignorar-mouse', !!ignorar),
   ocultar: () => ipcRenderer.send('ocultar'),
   abrirBoveda: tarea => ipcRenderer.send('abrir-boveda', tarea || null),
+  abrirPrincipal: () => ipcRenderer.send('abrir-principal'),
   ajustarTamano: (ancho, alto, escala, robot) => ipcRenderer.send('ajustar-tamano', ancho, alto, escala, robot),
   leerPortapapeles: () => ipcRenderer.invoke('leer-portapapeles'),
   alEnfocarEntrada: cb => ipcRenderer.on('enfocar-entrada', () => cb()),

@@ -1,3 +1,5 @@
+/* (pie) explicación de la contraseña única */
+.pie-clave { margin-left: 14px; color: #6fae8f; }
 /* LyFan Guard · pantalla de la Bóveda (estilo consola) */
 :root {
   --fondo: rgba(2, 9, 7, .93);

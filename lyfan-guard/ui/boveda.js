@@ -72,12 +72,22 @@
   const lista = arr => arr.slice(0, 5).map(a => quitar(a.nombre)).join(', ') + (arr.length > 5 ? '…' : '');
   const pl = (n, s, p) => `${n} ${n === 1 ? s : p}`;
 
+  // Lo último que se hizo, para entender «vuélvelo a cifrar», «descífralo», «otra vez»
+  let ultimos = [];
+  const base = nombre => quitar(nombre).toLowerCase();
+  const RE_PRONOMBRE = /\b(\w+(?:lo|la|los|las)|otra vez|de nuevo|nuevamente|ese|esa|este|esta|eso|esto)\b/;
+  const RE_CAMBIAR_CLAVE = /\b(cambia\w*|cambio|cambiar|nueva|otra|modifica\w*|renueva\w*)\b.*\b(contrasena|clave)\b|\b(contrasena|clave)\b.*\b(cambia\w*|cambiar|nueva)\b/;
+
   /** Devuelve lo que LyFan responde (y abre la pantalla si hace falta), o null si no era un pedido sobre la bóveda. */
   async function comando(texto) {
     const n = norm(texto);
     if (!n || n.length > 240) return null;
     if (/\bcontrasena\b.*\b(es|son)\b\s+\S+/.test(n) && /\b(boveda|maestra|clave)\b/.test(n))
       return 'Señor, no me diga su contraseña ni por voz ni por escrito. Escríbala solo en la ventana de la bóveda.';
+    if (RE_CAMBIAR_CLAVE.test(n) && /\b(boveda|maestra|cambia\w*|cambiar)\b/.test(n) && !RE_PREGUNTA.test(n)) {
+      abrirPantalla({ accion: 'cambiar' });
+      return 'Claro. En la pantalla escriba primero su contraseña actual y luego la nueva. Su bóveda usa una sola contraseña para todos los archivos.';
+    }
     let est;
     try { est = await api(''); } catch { return null; }
     const archivos = est.archivos || [];
@@ -88,7 +98,9 @@
     const descifrar = RE_DESCIFRAR.test(nv);
     const cifrar = !descifrar && RE_CIFRAR.test(nv);
     const bloquear = RE_BLOQUEAR.test(n) && !cifrar && !descifrar;
-    const nombrados = elegir(texto, archivos);
+    let nombrados = elegir(texto, archivos);
+    const usaPronombre = !nombrados.length && ultimos.length && RE_PRONOMBRE.test(n) && !RE_TODO.test(n);
+    if (usaPronombre) nombrados = archivos.filter(a => ultimos.includes(base(a.nombre)));
     const todos = RE_TODO.test(n) && !nombrados.length;
     const analizar = RE_ANALIZAR.test(n) && !cifrar && !descifrar &&
       (hablaDeBoveda || nombrados.length || /\b(archivo|documento|script|bat|ps1|vbs|txt|exe)\b/.test(n)) &&
@@ -98,7 +110,7 @@
     if (!(cifrar || descifrar || analizar || leer || mostrar || bloquear)) return null;
     if (RE_PREGUNTA.test(n)) return null;                                   // «¿qué es cifrar?» lo responde el modelo
     if ((cifrar || descifrar || analizar) && RE_CAPACIDAD.test(n) && !nombrados.length && !todos) return null;   // «¿puedes cifrar archivos?» lo responde el modelo
-    if ((cifrar || descifrar) && !(hablaDeBoveda || /\b(archivo|archivos|documento|documentos|foto|fotos|todo|todos|todas|lo|la|los|las)\b/.test(n) || nombrados.length)) return null;
+    if ((cifrar || descifrar) && !(hablaDeBoveda || /\b(archivo|archivos|documento|documentos|foto|fotos|todo|todos|todas|lo|la|los|las)\b/.test(n) || nombrados.length || RE_PRONOMBRE.test(n))) return null;
 
     if (bloquear) { await api('/bloquear', {}); return 'Listo, su bóveda quedó bloqueada.'; }
 
@@ -141,6 +153,7 @@
       return `Hay varios que coinciden, señor: ${lista(objetivo)}. ¿Cuál de ellos?`;
     }
     const nombres = objetivo.map(a => a.nombre);
+    ultimos = objetivo.map(a => base(a.nombre));
     const que = objetivo.length === 1 ? quitar(objetivo[0].nombre) : pl(objetivo.length, 'archivo', 'archivos');
 
     if (cifrar) {

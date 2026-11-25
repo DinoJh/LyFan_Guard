@@ -61,6 +61,9 @@ En los modos 2 y 3 el botón del micrófono se pone verde mientras escucha, rojo
 
 Además: **volumen**, **velocidad** (en Dave), **efecto robot** (de 0 a 100) y **Probar voz**. Si ElevenLabs falla (clave vencida, sin créditos o sin internet), LyFan cambia solo a Dave y lo avisa; si tampoco está disponible, usa la voz de Windows. A las voces en línea solo se les envía la frase que va a decir, sin los enlaces.
 
+## Ventana principal
+Además de la mascota flotante, LyFan tiene su propia ventana (`ui/principal.html`): conversación, **Analizar** (mensajes y enlaces con semáforo y puntaje), **Bóveda** (estado, archivos y cambio de contraseña) y **Actividad** de la sesión. Se abre diciéndole «muéstrate» o «abre tu ventana principal», con el botón ▦ de la barra, o desde el menú de clic derecho y la bandeja. Mientras está abierta, la mascota flotante se oculta y LyFan «se muda» a la ventana grande; su voz y su micrófono siguen funcionando. Al cerrarla, vuelve a aparecer.
+
 ## Bóveda (archivos cifrados)
 La carpeta `Documentos\LyFan Bóveda` (cambiable con `LYFAN_BOVEDA`) es el lugar de trabajo: LyFan encuentra ahí los archivos por su nombre, así que no hay que decirle rutas. Se abre en una **pantalla completa estilo consola** (engranaje → *Bóveda*, o a pedido de LyFan).
 
@@ -70,7 +73,7 @@ La carpeta `Documentos\LyFan Bóveda` (cambiable con `LYFAN_BOVEDA`) es el lugar
 - «Desencripta trabajo» → «Claro, señor, introduzca la contraseña»: aparece la ventana para escribirla y solo si es correcta se descifra. **Descifrar siempre pide la contraseña.**
 - «Analiza este .bat y dime si es sospechoso», «revisa el txt», «léeme saludo». Revisa scripts (.bat, .ps1, .vbs, .js…), texto con datos sensibles (tarjetas, claves) y archivos engañosos (doble extensión); solo lee, nunca ejecuta, y todo ocurre en el equipo.
 
-**A mano**: arrastrar archivos sobre la pantalla (o *+ Agregar*), botones *Cifrar / Descifrar / Analizar / Ver*, filtros Todos · Cifrados · En claro, buscador, *Abrir carpeta* y *Bloquear*. La clave maestra se deriva con scrypt, vive solo en memoria y se borra a los 10 minutos; el original se borra únicamente después de comprobar que el cifrado se descifra bien. **Si se olvida la contraseña, nadie puede recuperar los archivos.**
+**A mano**: arrastrar archivos sobre la pantalla (o *+ Agregar*), botones *Cifrar / Descifrar / Analizar / Ver*, filtros Todos · Cifrados · En claro, buscador, *Abrir carpeta* y *Bloquear*. La clave maestra se deriva con scrypt, vive solo en memoria y se borra a los 10 minutos; el original se borra únicamente después de comprobar que el cifrado se descifra bien. **Si se olvida la contraseña, nadie puede recuperar los archivos.** La bóveda usa **una sola contraseña maestra** para todos los archivos; para cambiarla: botón *CONTRASEÑA* o «cambia la contraseña de la bóveda» (LyFan vuelve a cifrar todo con la nueva).
 
 ## Expresiones
 

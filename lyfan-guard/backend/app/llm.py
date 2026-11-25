@@ -28,12 +28,29 @@ SISTEMA = (
     "También puedes mostrar en pantalla completa los archivos de la bóveda (todos, los cifrados o los que están en claro), analizar archivos de texto y scripts (.bat, .ps1, .vbs…) y decir si son sospechosos, y leer su contenido. "
     "El usuario te lo pide por voz o escribiendo, por ejemplo: «cifra trabajo», «muéstrame los archivos cifrados», «descifra trabajo» o «analiza el archivo .bat». "
     "Para descifrar o desbloquear, la contraseña se escribe en una ventana de la pantalla; jamás la digan por voz ni por el chat. "
+    "La bóveda usa UNA sola contraseña maestra para todos los archivos: la misma sirve para cifrar y descifrar, y volver a cifrar un archivo no requiere otra contraseña. "
+    "Nunca propongas crear contraseñas nuevas por archivo. Si quieren cambiarla, se dice «cambia la contraseña de la bóveda» y se hace en la pantalla de la bóveda. "
     "Si te preguntan si puedes cifrar o analizar archivos, responde que sí, explica en una frase cómo pedírtelo y ofrece hacerlo. "
     "No menciones contraseñas ni datos bancarios a menos que el tema lo exija. "
     "No inventes datos ni enlaces. Si no sabes algo, dilo con respeto. "
     "Si le cuentan un problema de seguridad, dale pasos concretos y tranquilos. Nunca pidas contraseñas, códigos ni datos bancarios. "
     "Si tu respuesta concluye que algo es malicioso, peligroso, una estafa o un virus (por ejemplo un malware, un enlace falso o un archivo sospechoso), empieza la respuesta con la etiqueta [ALERTA] seguida de un espacio; en cualquier otro caso no uses etiquetas."
 )
+
+
+# Cuánto tiempo Ollama mantiene el modelo en memoria después de usarlo (por defecto son solo 5 minutos,
+# y por eso la primera respuesta tras un rato tardaba: el modelo tenía que volver a cargarse).
+MANTENER = os.environ.get("LYFAN_MANTENER_MODELO", "3h")
+
+
+async def precalentar(ollama_url: str, modelo: str) -> bool:
+    """Carga el modelo en memoria (sin generar texto) para que la primera pregunta responda rápido."""
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=3.0)) as cliente:
+            r = await cliente.post(f"{ollama_url}/api/generate", json={"model": modelo, "prompt": "", "keep_alive": MANTENER})
+            return r.status_code == 200
+    except Exception:  # noqa: BLE001 - si Ollama no está, LyFan sigue en modo básico
+        return False
 
 
 async def salud(ollama_url: str, modelo: str) -> dict:
@@ -54,6 +71,7 @@ async def stream_chat(mensajes: list[dict], ollama_url: str, modelo: str) -> Asy
         "model": modelo,
         "stream": True,
         "think": False,
+        "keep_alive": MANTENER,
         "options": {"temperature": 0.4, "num_predict": 320},
         "messages": [{"role": "system", "content": SISTEMA}] + mensajes,
     }

@@ -38,7 +38,7 @@
     return t.replace(/\*\*|__|`/g, '').replace(/^\s{0,3}#{1,6}\s*/gm, '').replace(/^\s*[-*]\s+/gm, '• ').replace(/\n{3,}/g, '\n\n');
   }
   function decir(texto) {
-    textoBurbuja = texto;
+    textoBurbuja = texto; emitir({ tipo: 'burbuja', texto });
     if (window.LyFan) window.LyFan.say(texto);
     frase.scrollTop = frase.scrollHeight;
   }
@@ -59,7 +59,10 @@
     window.LyFan.say(textoBurbuja);
   }
   function ponerPose(p) { clearTimeout(idleDiferido); window.LyFan.setPose(p); textoBurbuja = frase.textContent; }   // la expresión trae su propia frase
-  function nivelBurbuja(nivel) { if (nivel) root.dataset.nivel = nivel; else delete root.dataset.nivel; }
+  function nivelBurbuja(nivel) { if (nivel) root.dataset.nivel = nivel; else delete root.dataset.nivel; emitir({ tipo: 'nivel', nivel: nivel || null }); }
+  // Puente con la ventana principal (principal.html): ella muestra lo que pasa aquí y le pide cosas a LyFan
+  const canalApp = 'BroadcastChannel' in window ? new BroadcastChannel('lyfan-app') : null;
+  function emitir(m) { if (canalApp) { try { canalApp.postMessage(m); } catch { /* sin ventana principal */ } } }
   const nivelMic = n => { if (window.LyFan && window.LyFan.nivelMic) window.LyFan.nivelMic(n); };   // barras de «Escuchando»
 
   // ================================================================== 2. frases y expresiones
@@ -137,8 +140,12 @@
 
   // ================================================================== 3. ánimo en reposo
   const ANIMO = { trabajaS: 50, duermeMin: 3 };             // a los 50 s se pone a trabajar; a los 3 minutos se duerme
-  const FRASES_OCIO = ['Mientras tanto, reviso que todo esté en orden, señor.', 'Verificando que no se cuele nada sospechoso, señor.', 'Trabajando en segundo plano, señor.'];
-  const GESTOS = [['curious', 5], ['wink', 5], ['happy', 3], ['work', 2]];   // gestos al azar y su peso
+  const FRASES_OCIO = ['Reviso que todo esté en orden…', 'Vigilando que no se cuele nada raro…', 'Afinando mis escáneres…', 'Revisando la seguridad en segundo plano…'];
+  const FRASES_GESTO = {
+    curious: ['Mmm… ¿qué tenemos por aquí?', 'Mmm… algo llamó mi atención.', '¿Y eso? Déjeme echar un vistazo…', 'Mmm… ¿qué será eso de allá?', 'Interesante… muy interesante.'],
+    wink: ['Todo bajo control.', 'Aquí sigo, cuidando su equipo.', 'Tranquilo, yo vigilo.', 'Su equipo está en buenas manos.', 'Nada se me escapa.'],
+  };
+  const GESTOS = [['curious', 5], ['wink', 5], ['work', 2]];   // gestos al azar y su peso (kawaii solo con caricias o al volver)
   let ocioTimers = [];
 
   const hablando = () => !!(V && (V.estaHablando() || V.escuchando()));
@@ -156,7 +163,7 @@
       if (libre() && window.LyFan.pose === 'idle') {
         let r = Math.random() * GESTOS.reduce((a, g) => a + g[1], 0), g = GESTOS[0][0];
         for (const [p, w] of GESTOS) { if ((r -= w) <= 0) { g = p; break; } }
-        ponerPose(g);
+        ponerPose(g); if (FRASES_GESTO[g]) decir(azar(FRASES_GESTO[g]));
         ocioTimers.push(setTimeout(() => { if (libre() && window.LyFan.pose === g) pose('idle'); }, g === 'wink' ? 2400 : g === 'work' ? 5000 : 3900));
       }
       gestoAlAzar(false);
@@ -178,7 +185,7 @@
 
   // ================================================================== 4. conversación
   function agregarMensaje(rol, texto) {
-    historial.push({ rol, texto });
+    historial.push({ rol, texto, hora: Date.now() }); emitir({ tipo: 'mensaje', rol, texto, hora: Date.now() });
     if (historial.length > 30) historial = historial.slice(-30);
     pintarLog();
   }
@@ -193,6 +200,7 @@
     listaLog.scrollTop = listaLog.scrollHeight;
   }
   function mostrarResultado(r) {
+    emitir({ tipo: 'analisis', datos: r });
     tarjeta.dataset.nivel = r.nivel;
     $('res-titulo').textContent = { tranquilo: 'Todo en orden, señor', alerta: 'Atención: es sospechoso', peligro: '¡Cuidado, señor! Posible estafa' }[r.nivel];
     $('res-puntaje').textContent = `${r.puntaje}/100`;
@@ -212,7 +220,7 @@
   async function enviar(texto, forzarAnalisis = false, viaVoz = false) {
     texto = texto.trim();
     if (!texto || ocupado) return;
-    ocupado = true; btnEnviar.disabled = true;
+    ocupado = true; btnEnviar.disabled = true; emitir({ tipo: 'ocupado', valor: true });
     clearTimeout(temporizadorPose); reiniciarSueno(); despertar();
     cerrarPaneles(); nivelBurbuja(null); V.detener();
 
@@ -226,7 +234,11 @@
     let acumulado = '', nivel = null, primerTrozo = true, fallo = false;
     try {
       let local = null;
-      try { if (window.LyFanBoveda && !forzarAnalisis) local = await window.LyFanBoveda.comando(texto); } catch (e) { console.warn('Bóveda:', e); }
+      if (!forzarAnalisis && RE_PRINCIPAL.test(normal(texto))) {
+        abrirPrincipal();
+        local = azar(['Claro. Aquí tiene mi ventana principal.', 'Con gusto, le abro mi ventana principal.', 'Por supuesto. Ya le muestro mi ventana principal.']);
+      }
+      try { if (local === null && window.LyFanBoveda && !forzarAnalisis) local = await window.LyFanBoveda.comando(texto); } catch (e) { console.warn('Bóveda:', e); }
       if (local !== null) {
         primerTrozo = false; acumulado = local;
         if (!V.prefs.activa) pose(poseHablando(root.dataset.nivel, false));
@@ -251,7 +263,7 @@
             nivel = ev.datos.nivel;
             await new Promise(r => setTimeout(r, Math.max(0, MIN_ANALISIS_MS - (performance.now() - inicio))));
             mostrarResultado(ev.datos); nivelBurbuja(nivel);
-            pose(nivel === 'tranquilo' ? 'happy' : 'alert');
+            pose(nivel === 'tranquilo' ? 'wink' : 'alert');
           } else if (ev.tipo === 'modo') {
             const basico = ev.valor === 'plantilla';
             if (basico !== modoBasico) { modoBasico = basico; etiqueta.textContent = basico ? 'LyFan · modo básico' : 'LyFan'; }
@@ -279,11 +291,11 @@
       agregarMensaje('lyfan', textoBurbuja);
       pose('alert'); nivelBurbuja('alerta'); fallo = true;
     } finally {
-      ocupado = false; btnEnviar.disabled = false; entrada.focus();
+      ocupado = false; btnEnviar.disabled = false; entrada.focus(); emitir({ tipo: 'ocupado', valor: false });
       if (window.LyFan.pose === 'scanTalk' && !nivel && V.estaHablando()) pose(poseHablando(nivel, false));   // ya terminó de generar: sigue «Hablando»
       V.cuandoCalle(() => {                                   // al terminar de hablar, LyFan se detiene
         if (fallo) volverAReposo(8000);
-        else if (nivel === 'tranquilo') { pose('happy'); volverAReposo(2500); }
+        else if (nivel === 'tranquilo') { pose('wink'); volverAReposo(2500); }
         else if (nivel) { pose('alert'); volverAReposo(25000); }   // con riesgo, la alerta se queda un buen rato
         else volverAReposo(V.prefs.activa ? 500 : 2500);
       });
@@ -305,6 +317,7 @@
       enviar(t.slice(0, 4000), true);
     } catch { decir('No pude leer el portapapeles, señor. Pegue el texto aquí abajo con Ctrl+V.'); entrada.focus(); }
   });
+  $('btn-principal').addEventListener('click', () => abrirPrincipal());
   $('btn-log').addEventListener('click', () => { const abrir = log.hidden; cerrarPaneles(); log.hidden = !abrir; if (abrir) pintarLog(); });
   $('log-cerrar').addEventListener('click', () => { log.hidden = true; });
   $('res-cerrar').addEventListener('click', e => { e.stopPropagation(); ocultarResultado(); });
@@ -312,11 +325,12 @@
   $('res-cab').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternarResultado(); } });
   hit.addEventListener('dblclick', () => {                    // doble clic: una sonrisa
     despertar(); clearTimeout(temporizadorPose); nivelBurbuja(null);
-    decir(azar(['¡Jejeje! Me hace cosquillas, señor.', '¡Es un gusto verlo, señor!', 'A sus órdenes, señor.']));
-    pose('happy'); volverAReposo(3200);
+    root.dispatchEvent(new CustomEvent('lyfan:pet'));
+    decir(azar(['¡Jejeje! Me hace cosquillas.', 'Awww… gracias por el cariño.', '¡Qué bonito! Me encantan las caricias.', 'Jeje… ¡otra, por favor!']));
+    volverAReposo(3800);
   });
   let poseAnterior = null;                                    // si algo despierta a LyFan (clic, las z…), se reinician sus tiempos
-  document.addEventListener('lyfan:pose', e => { poseDesde = performance.now(); const n = e.detail.pose; if (poseAnterior === 'sleep' && n !== 'sleep') programarOcio(); poseAnterior = n; });
+  document.addEventListener('lyfan:pose', e => { poseDesde = performance.now(); emitir({ tipo: 'pose', pose: e.detail.pose }); const n = e.detail.pose; if (poseAnterior === 'sleep' && n !== 'sleep') programarOcio(); poseAnterior = n; });
   document.addEventListener('pointerdown', () => { reiniciarSueno(); });
 
   // ================================================================== 7. voz
@@ -332,7 +346,7 @@
     if (ocupado || poseDeTarea) return;
     const n = root.dataset.nivel;
     if (n === 'alerta' || n === 'peligro') pose('alert');     // sigue en alerta, ya sin hablar
-    else if (n === 'tranquilo') pose('happy');
+    else if (n === 'tranquilo') pose('wink');
     else volverAReposo(300);
   });
 
@@ -340,7 +354,7 @@
   // Tres modos (V.prefs.modoMic): 'manual' (lo enciendo y lo apago), 'nombre' (siempre encendido; responde si empiezo con «LyFan»)
   // y 'siempre' (siempre encendido; responde cada vez que hablo).
   const siempreEncendido = () => V.prefs.modoMic !== 'manual';
-  let pausaManual = false, ventanaOculta = false, estadoMic = 'apagado';
+  let pausaManual = false, ventanaOculta = false, estadoMic = 'apagado', principalAbierta = false;
   const oyentesMic = [];
   const mlOpciones = () => ({ sensibilidad: V.prefs.sensibilidad || 3, espera: (V.prefs.esperaDecimas || 12) / 10, interrumpir: !!V.prefs.interrumpir });
 
@@ -367,7 +381,7 @@
   }
 
   // --- siempre encendido: responde cuando se calla y escucha cuando empieza a hablar
-  function aplicarPausa() { if (V.manos.activo) V.manos.pausar(pausaManual || ventanaOculta); }
+  function aplicarPausa() { if (V.manos.activo) V.manos.pausar(pausaManual || (ventanaOculta && !principalAbierta)); }
   function pintarMic(e) {
     const anterior = estadoMic; estadoMic = e;
     for (const k of ['activa', 'voz', 'procesando', 'pausa']) btnMic.classList.toggle('ml-' + k, (k === 'activa' && e === 'escuchando') || k === e);
@@ -382,6 +396,7 @@
       volverAReposo(500);                                       // era un ruido o no se entendió nada
     }
     if (e !== 'voz') nivelMic(0);
+    emitir({ tipo: 'mic', estado: e, modo: V.prefs.modoMic });
     oyentesMic.forEach(f => f(e));
   }
   // Modo «nombre»: la frase debe EMPEZAR con «LyFan» (se aceptan saludos como «oye» u «hola» antes)
@@ -423,7 +438,16 @@
     pausaManual = !pausaManual; aplicarPausa(); pintarMic(V.manos.estado);
   });
   document.addEventListener('visibilitychange', () => { ventanaOculta = document.hidden; aplicarPausa(); pintarMic(V.manos.estado); });
-  if (escritorio && escritorio.alCambiarVisibilidad) escritorio.alCambiarVisibilidad(visible => { ventanaOculta = !visible; aplicarPausa(); pintarMic(V.manos.estado); });
+  let estuvoOculto = false;
+  if (escritorio && escritorio.alCambiarVisibilidad) escritorio.alCambiarVisibilidad(visible => {
+    ventanaOculta = !visible; aplicarPausa(); pintarMic(V.manos.estado);
+    if (!visible) { estuvoOculto = true; return; }
+    if (estuvoOculto && !ocupado && !hablando() && window.LyFan) {   // al volver a abrirlo: kawaii y un saludo
+      estuvoOculto = false; clearTimeout(temporizadorPose); nivelBurbuja(null);
+      decir(azar(['¡Qué gusto verlo de nuevo!', '¡Volví! ¿En qué le ayudo?', '¡Aquí estoy otra vez!']));
+      ponerPose('happy'); textoBurbuja = frase.textContent; volverAReposo(3600);
+    }
+  });
 
   // ================================================================== 9. ventana de escritorio (Electron)
   function probarExpresion(p) {                                 // desde el menú de clic derecho de la ventana
@@ -488,6 +512,28 @@
     } catch { /* el servidor aún no responde */ }
   }
 
+  // ================================================================== ventana principal
+  const normal = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const RE_PRINCIPAL = /\b(muestrate|mostrarte|aparece|abrete|(abre|abri|muestra|ensena|ensename|muestrame|pon|ponme|quiero ver) (tu|la|su) (ventana|interfaz|pantalla|aplicacion|app|panel)( principal)?|(ventana|interfaz|pantalla|panel) principal)\b/;
+  function abrirPrincipal() {
+    if (escritorio && escritorio.abrirPrincipal) escritorio.abrirPrincipal();
+    else window.open('/principal.html', 'lyfan-principal');
+  }
+  if (canalApp) canalApp.onmessage = ev => {
+    const d = ev.data || {};
+    if (d.tipo === 'hola') {
+      principalAbierta = true; aplicarPausa();
+      canalApp.postMessage({ tipo: 'estado', historial, pose: window.LyFan && window.LyFan.pose, burbuja: textoBurbuja,
+        nivel: root.dataset.nivel || null, mic: estadoMic, modoMic: V.prefs.modoMic, vozActiva: !!V.prefs.activa, ocupado, modoBasico });
+    } else if (d.tipo === 'adios') { principalAbierta = false; aplicarPausa(); }
+    else if (d.tipo === 'enviar' && d.texto) enviar(String(d.texto).slice(0, 4000), !!d.analizar);
+    else if (d.tipo === 'mic') btnMic.click();
+    else if (d.tipo === 'callar') V.detener();
+    else if (d.tipo === 'voz') { $('btn-voz').click(); setTimeout(() => emitir({ tipo: 'voz', activa: !!V.prefs.activa }), 50); }
+    else if (d.tipo === 'boveda' && window.LyFanBoveda) window.LyFanBoveda.abrirPantalla(d.tarea || null);
+    else if (d.tipo === 'caricia') hit.dispatchEvent(new MouseEvent('dblclick'));
+  };
+
   // Lo que el panel de configuración (ajustes.js) necesita de este archivo
   // LyFan dice algo que no viene del chat (por ejemplo, el resultado de una tarea de la bóveda)
   // o.tarea: 'encrypt' | 'decrypt' | 'scan' (qué estaba haciendo); o.nivel: 'tranquilo' | 'alerta' | 'peligro' (cómo salió)
@@ -503,7 +549,7 @@
     V.cuandoCalle(() => {
       ctxHabla = null;
       if (nivel === 'alerta' || nivel === 'peligro') { pose('alert'); volverAReposo(25000); }
-      else if (nivel === 'tranquilo') { pose('happy'); volverAReposo(2500); }
+      else if (nivel === 'tranquilo') { pose('wink'); volverAReposo(2500); }
       else volverAReposo(V.prefs.activa ? 500 : 3000);
     });
   }
@@ -515,7 +561,7 @@
   });
 
   window.LyFanApp = {
-    escritorio, decir, pose, cerrarPaneles, aplicarModoMic, responder, poseTarea,
+    escritorio, decir, pose, cerrarPaneles, aplicarModoMic, responder, poseTarea, abrirPrincipal,
     estadoMic: () => estadoMic,
     alEstadoMic: f => oyentesMic.push(f),
     alAvisoVoz: f => oyentesAviso.push(f),

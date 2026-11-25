@@ -120,6 +120,53 @@ def _verificar(clave: str) -> bytes:
     return maestra
 
 
+def cambiar_clave(actual: str, nueva: str) -> dict:
+    """Una sola contraseña protege toda la bóveda. Cambiarla vuelve a cifrar cada archivo con la nueva.
+    Si algo falla a mitad de camino, no se cambia nada: los archivos y la contraseña anterior siguen valiendo."""
+    vieja = _verificar(actual)
+    if len(nueva) < MIN_CLAVE:
+        raise ErrorBoveda(f"La nueva contraseña debe tener al menos {MIN_CLAVE} caracteres.")
+    if nueva == actual:
+        raise ErrorBoveda("La nueva contraseña debe ser distinta de la actual.")
+    sal = secrets.token_bytes(16)
+    maestra = _derivar(nueva, sal)
+    archivos = sorted(p for p in DIR_BOVEDA.iterdir() if p.is_file() and p.suffix == EXT and not p.name.startswith("."))
+    listos: list[tuple[Path, Path]] = []
+    try:
+        for ruta in archivos:
+            nuevo = ruta.with_name("." + ruta.name + ".nuevo")
+            listos.append((nuevo, ruta))
+            plano = DIR_BOVEDA / ("." + secrets.token_hex(6) + ".tmp")
+            try:
+                with open(ruta, "rb") as ent, open(plano, "wb") as s:
+                    original = _descifrar_flujo(ent, vieja, s.write)
+                with open(plano, "rb") as ent, open(nuevo, "wb") as s:
+                    _cifrar_flujo(ent, s, original, maestra)
+                h = hashlib.sha256()
+                with open(nuevo, "rb") as ent:
+                    _descifrar_flujo(ent, maestra, h.update)
+                if h.hexdigest() != _sha(plano):
+                    raise ErrorBoveda(f"La verificación de {ruta.name} falló; no se cambió nada.", 500)
+            finally:
+                plano.unlink(missing_ok=True)
+    except BaseException:
+        for nuevo, _ in listos:
+            nuevo.unlink(missing_ok=True)
+        raise
+    nonce = secrets.token_bytes(12)
+    prueba = AESGCM(maestra).encrypt(nonce, _PRUEBA, b"prueba")
+    cfg_tmp = DIR_BOVEDA / (ARCHIVO_CONFIG + ".tmp")
+    cfg_tmp.write_text(json.dumps({
+        "version": 1, "kdf": "scrypt", "n": _SCRYPT_N, "r": _SCRYPT_R, "p": _SCRYPT_P,
+        "sal": sal.hex(), "nonce": nonce.hex(), "prueba": prueba.hex(),
+    }), encoding="utf-8")
+    os.replace(cfg_tmp, _ruta_config())
+    for nuevo, ruta in listos:
+        os.replace(nuevo, ruta)
+    _fijar(maestra)
+    return {**estado(), "recifrados": len(listos)}
+
+
 def bloquear() -> dict:
     global _clave
     with _bloqueo:

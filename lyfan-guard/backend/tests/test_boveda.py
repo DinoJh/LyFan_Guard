@@ -154,3 +154,23 @@ def test_descifrar_con_clave_exige_la_contrasena_correcta():
     assert e.value.codigo == 401 and (boveda.DIR_BOVEDA / "a.txt.lyfan").exists()
     r = boveda.descifrar_con_clave(["a.txt.lyfan", "b.txt.lyfan"], "clave-buena-123")
     assert sorted(r["descifrados"]) == ["a.txt", "b.txt"] and not r["fallos"]
+
+
+def test_cambiar_clave_recifra_todo_y_la_vieja_deja_de_servir():
+    _crear("clave-vieja-123")
+    (boveda.DIR_BOVEDA / "a.txt").write_text("secreto uno", encoding="utf-8")
+    (boveda.DIR_BOVEDA / "b.txt").write_text("secreto dos", encoding="utf-8")
+    boveda.cifrar("a.txt"); boveda.cifrar("b.txt")
+    with pytest.raises(boveda.ErrorBoveda):
+        boveda.cambiar_clave("clave-mala-000", "clave-nueva-456")
+    with pytest.raises(boveda.ErrorBoveda):
+        boveda.cambiar_clave("clave-vieja-123", "corta")
+    r = boveda.cambiar_clave("clave-vieja-123", "clave-nueva-456")
+    assert r["recifrados"] == 2
+    assert not [p for p in boveda.DIR_BOVEDA.iterdir() if p.name.startswith(".") and p.name != boveda.ARCHIVO_CONFIG]
+    boveda.bloquear()
+    with pytest.raises(boveda.ErrorBoveda):
+        boveda.descifrar_con_clave(["a.txt.lyfan"], "clave-vieja-123")
+    r = boveda.descifrar_con_clave(["a.txt.lyfan", "b.txt.lyfan"], "clave-nueva-456")
+    assert sorted(r["descifrados"]) == ["a.txt", "b.txt"]
+    assert (boveda.DIR_BOVEDA / "a.txt").read_text(encoding="utf-8") == "secreto uno"

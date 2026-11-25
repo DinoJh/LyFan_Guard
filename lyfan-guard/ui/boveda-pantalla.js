@@ -177,6 +177,31 @@
     return ok;
   }
 
+  // Una sola contraseña para toda la bóveda. Cambiarla vuelve a cifrar cada archivo con la nueva.
+  async function cambiarClave() {
+    if (ocupado) return;
+    if (!est.creada) { await crearBoveda(); return; }
+    ocupado = true;
+    try {
+      let actual = '';
+      const paso1 = await ventana({
+        titulo: 'Cambiar contraseña · 1 de 2', texto: 'Escriba su contraseña ACTUAL. Su bóveda usa una sola contraseña para todos los archivos.', boton: 'CONTINUAR',
+        accion: async c => { pintar(await api('/desbloquear', { clave: c })); actual = c; },
+      });
+      if (!paso1) { log('aviso', 'Cambio de contraseña cancelado.'); return; }
+      let res = null;
+      log('info', '> CAMBIANDO CONTRASEÑA — se volverán a cifrar los archivos…', { cursor: true });
+      const paso2 = await ventana({
+        titulo: 'Cambiar contraseña · 2 de 2', texto: 'Escriba la NUEVA contraseña dos veces. Desde ahora será la única que abre su bóveda.', repetir: true, boton: 'CAMBIAR',
+        accion: async c => { res = await api('/cambiar-clave', { actual, nueva: c }); pintar(res); },
+      });
+      actual = '';
+      if (!paso2) { log('aviso', 'Cambio de contraseña cancelado: sigue valiendo la anterior.'); return; }
+      log('ok', `✔ Contraseña cambiada. ${res.recifrados} archivo(s) cifrados de nuevo con la nueva contraseña.`);
+      avisarLyFan('Listo, su bóveda ya usa la nueva contraseña. La anterior dejó de servir.', 'encrypt', 'tranquilo');
+    } finally { ocupado = false; }
+  }
+
   // ================================================================== acciones
   async function cifrar(nombres) {
     if (ocupado) return; ocupado = true; avisarPose('encrypt');
@@ -263,6 +288,7 @@
         break;
       case 'crear': if (!est.creada) crearBoveda().then(ok => { if (ok && t.reintentar && canal) canal.postMessage({ tipo: 'reintentar', texto: t.reintentar }); }); break;
       case 'desbloquear': if (est.bloqueada) pedirDesbloqueo(); break;
+      case 'cambiar': cambiarClave(); break;
       case 'cifrar': cifrar(t.nombres || []); break;
       case 'descifrar': descifrar(t.nombres || []); break;
       case 'analizar': analizar(t.nombres || []); break;
@@ -276,6 +302,7 @@
   // ================================================================== controles
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { filtro = t.dataset.f; pintar(est); }));
   $('buscar').addEventListener('input', e => { busqueda = e.target.value; pintarLista(); });
+  $('bt-clave').addEventListener('click', () => cambiarClave());
   $('bt-bloquear').addEventListener('click', async () => { try { pintar(await api('/bloquear', {})); log('aviso', '🔒 Bóveda bloqueada.'); } catch (e) { log('err', e.message); } });
   $('bt-carpeta').addEventListener('click', () => api('/abrir-carpeta', {}).then(() => log('info', '> Carpeta abierta en el Explorador.')).catch(e => log('err', e.message)));
   const cerrar = () => { if (canal) canal.postMessage({ tipo: 'cerrada' }); window.close(); };

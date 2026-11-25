@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'">
+<title>LyFan Guard</title>
+<link rel="stylesheet" href="mascota/estilos.css">
+<link rel="stylesheet" href="principal.css">
+</head>
+<body>
+<!-- Barra de título (se puede arrastrar; los botones de la ventana los pone el sistema) -->
+<header class="titulo">
+  <div class="marca">
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></span>
+    <span class="nombre">LyFan <b>Guard</b></span>
+    <span class="estado-ia" id="estado-ia"><i></i><span>Conectando…</span></span>
+  </div>
+</header>
+
+<div class="app">
+  <!-- Menú lateral -->
+  <nav class="menu" aria-label="Secciones">
+    <button class="item activo" data-v="inicio" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>
+      <span>Conversar</span>
+    </button>
+    <button class="item" data-v="analizar" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v3"/><path d="M11 14h.01"/></svg>
+      <span>Analizar</span>
+    </button>
+    <button class="item" data-v="boveda" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>Bóveda</span>
+    </button>
+    <button class="item" data-v="actividad" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>
+      <span>Actividad</span>
+    </button>
+
+    <div class="menu-pie">
+      <div class="tarjeta-priv">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+        <div><b>100 % en su equipo</b><span>Nada sale a internet</span></div>
+      </div>
+      <p class="modelo" id="modelo">IA local</p>
+    </div>
+  </nav>
+
+  <main class="contenido">
+    <!-- ===================================================== CONVERSAR -->
+    <section class="vista activa" id="v-inicio" aria-label="Conversar con LyFan">
+      <div class="escena">
+        <div class="escena-cab">
+          <div>
+            <h1 id="saludo">Hola</h1>
+            <p class="sub">Su asistente de seguridad informática</p>
+          </div>
+          <span class="chip-pose" id="chip-pose"><i></i><span>En reposo</span></span>
+        </div>
+
+        <div id="lyfan-unified">
+          <img class="pet-analysis-source" hidden alt="" data-lyfan-image="analizar-unificado.webp">
+          <img class="pet-body-source" hidden alt="" data-lyfan-image="cuerpo-base.webp">
+          <img class="pet-extra-source" hidden alt="" data-lyfan-image="hablando-trabajando.webp">
+          <img class="pet-work-source" hidden alt="" data-lyfan-image="trabajando-unificado.webp">
+          <section class="pet-shell" aria-label="LyFan">
+            <div class="pet-stage">
+              <div class="pet-speech" aria-live="polite">
+                <div class="pet-speech-label">LyFan</div>
+                <div class="pet-phrase">Hola, soy LyFan.</div>
+              </div>
+              <button class="pet-hit" type="button" aria-label="Acariciar a LyFan"><canvas class="pet-canvas" width="760" height="760" role="img" aria-label="LyFan, robot con capucha azul">LyFan</canvas></button>
+              <div class="pet-dream" role="group" aria-label="Burbujas de sueño de LyFan"><button class="pet-dream-z" type="button" aria-label="Tocar la z pequeña">z</button><button class="pet-dream-z" type="button" aria-label="Tocar la segunda z">z</button><button class="pet-dream-z" type="button" aria-label="Tocar la z superior">Z</button></div>
+              <div class="pet-alert" role="group" aria-label="Señales de alerta"><button class="pet-alert-mark" type="button" aria-label="Alerta">!</button><button class="pet-alert-mark" type="button" aria-label="Alerta">!</button></div>
+            </div>
+            <div class="pet-hidden" hidden>
+              <span class="pet-status-text"></span>
+              <label class="pet-motion"><input type="checkbox" checked></label>
+              <button class="pet-blink" type="button"></button>
+            </div>
+          </section>
+          <img class="pet-source" hidden alt="" data-lyfan-image="atlas-expresiones.webp">
+        </div>
+
+        <div class="atajos">
+          <button type="button" class="atajo" data-ir="analizar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Revisar un mensaje</button>
+          <button type="button" class="atajo" data-ir="boveda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Proteger archivos</button>
+          <button type="button" class="atajo" id="atajo-mic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg>Hablarle</button>
+        </div>
+      </div>
+
+      <div class="chat">
+        <div class="chat-cab">
+          <h2>Conversación</h2>
+          <div class="chat-herr">
+            <button type="button" class="ico" id="bt-voz" title="Voz de LyFan" aria-label="Activar o silenciar la voz" aria-pressed="true">
+              <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+              <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="mensajes" id="mensajes" aria-live="polite"></div>
+        <div class="sugerencias" id="sugerencias">
+          <button type="button" class="sug">¿Este enlace es seguro?</button>
+          <button type="button" class="sug">Muéstrame los archivos cifrados</button>
+          <button type="button" class="sug">¿Cómo creo una contraseña segura?</button>
+        </div>
+        <form class="escribir" id="form" autocomplete="off">
+          <textarea id="entrada" rows="1" placeholder="Escríbale a LyFan…" aria-label="Mensaje para LyFan"></textarea>
+          <button type="button" class="ico mic" id="bt-mic" title="Hablarle a LyFan" aria-label="Hablarle a LyFan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg>
+          </button>
+          <button type="submit" class="enviar" id="bt-enviar" aria-label="Enviar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================================================== ANALIZAR -->
+    <section class="vista" id="v-analizar" aria-label="Analizar un mensaje o enlace">
+      <div class="panel ancho">
+        <h1>Analizar un mensaje o enlace</h1>
+        <p class="sub">Pegue un SMS, correo, mensaje de WhatsApp o un enlace. LyFan lo revisa en su equipo y le dice si es sospechoso.</p>
+        <textarea id="a-texto" class="grande" rows="7" placeholder="Ejemplo: «Su cuenta BCP fue bloqueada. Ingrese aquí para activarla: bit.ly/…»"></textarea>
+        <div class="fila">
+          <button type="button" class="boton primario" id="a-analizar">Analizar ahora</button>
+          <button type="button" class="boton" id="a-pegar">Pegar del portapapeles</button>
+          <span class="tenue">Para archivos (.bat, .txt…) use la Bóveda.</span>
+        </div>
+        <article class="resultado" id="a-resultado" hidden>
+          <div class="res-cab">
+            <div class="medidor" id="a-medidor"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" class="fondo"/><circle cx="18" cy="18" r="15.5" class="valor" id="a-arco"/></svg><b id="a-puntaje">0</b></div>
+            <div><h2 id="a-titulo">Resultado</h2><p class="tenue" id="a-nivel"></p></div>
+          </div>
+          <ul id="a-razones"></ul>
+          <p class="accion" id="a-accion"></p>
+        </article>
+        <div class="consejos">
+          <div><b>Desconfíe de la urgencia</b><span>«Su cuenta será bloqueada hoy» es la trampa más común.</span></div>
+          <div><b>Revise el enlace</b><span>Los bancos no usan acortadores como bit.ly ni dominios raros.</span></div>
+          <div><b>Nunca comparta códigos</b><span>Nadie legítimo le pedirá su clave, token o código SMS.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== BÓVEDA -->
+    <section class="vista" id="v-boveda" aria-label="Bóveda de archivos cifrados">
+      <div class="panel ancho">
+        <div class="cab-seccion">
+          <div>
+            <h1>Bóveda</h1>
+            <p class="sub">Sus archivos protegidos con AES-256 en la carpeta <em id="b-carpeta">LyFan Bóveda</em>.</p>
+          </div>
+          <span class="chip-estado" id="b-estado">—</span>
+        </div>
+        <div class="cifras">
+          <div class="cifra"><b id="b-total">0</b><span>archivos</span></div>
+          <div class="cifra verde"><b id="b-cifrados">0</b><span>cifrados</span></div>
+          <div class="cifra ambar"><b id="b-claro">0</b><span>sin cifrar</span></div>
+        </div>
+        <div class="fila">
+          <button type="button" class="boton primario" id="b-abrir">Abrir la bóveda</button>
+          <button type="button" class="boton" id="b-clave">Cambiar contraseña</button>
+          <button type="button" class="boton" id="b-carpeta-bt">Abrir carpeta</button>
+        </div>
+        <ul class="archivos" id="b-lista"></ul>
+        <div class="nota-clave">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>
+          <div>
+            <b>Una sola contraseña para todo</b>
+            <span>Su bóveda usa una única contraseña maestra: la misma cifra y descifra todos sus archivos, y volver a cifrar no pide otra. Si quiere cambiarla, use «Cambiar contraseña»; LyFan vuelve a cifrar todo con la nueva. Si la olvida, nadie podrá recuperar los archivos.</span>
+          </div>
+        </div>
+        <p class="tenue">También puede decirle: «cifra trabajo», «descifra trabajo», «muéstrame los archivos cifrados» o «analiza el .bat».</p>
+      </div>
+    </section>
+
+    <!-- ===================================================== ACTIVIDAD -->
+    <section class="vista" id="v-actividad" aria-label="Actividad de hoy">
+      <div class="panel ancho">
+        <h1>Actividad</h1>
+        <p class="sub">Lo que LyFan hizo en esta sesión.</p>
+        <div class="cifras">
+          <div class="cifra"><b id="s-mensajes">0</b><span>mensajes</span></div>
+          <div class="cifra"><b id="s-analisis">0</b><span>análisis</span></div>
+          <div class="cifra rojo"><b id="s-alertas">0</b><span>alertas</span></div>
+        </div>
+        <ol class="linea" id="linea"></ol>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="mascota/imagenes.js"></script>
+<script src="mascota/mascota.js"></script>
+<script src="principal.js"></script>
+</body>
+</html>

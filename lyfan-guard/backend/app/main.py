@@ -45,6 +45,8 @@ MODELO = os.environ.get("LYFAN_MODELO", "qwen3.5:4b")
 async def _vida(_app: FastAPI):
     if os.environ.get("LYFAN_STT_PRECARGA", "1") == "1":
         voz.precargar_transcriptor()      # el modelo de escucha se carga en segundo plano
+    if os.environ.get("LYFAN_LLM_PRECARGA", "1") == "1":
+        asyncio.create_task(llm.precalentar(OLLAMA_URL, MODELO))   # carga el modelo de IA en memoria antes de la primera pregunta
     yield
 
 
@@ -139,6 +141,19 @@ async def voz_transcribir(request: Request):
 # ------------------------------------------------------------------ bóveda (archivos cifrados)
 class ClaveIn(BaseModel):
     clave: str = Field(min_length=1, max_length=200)
+
+
+class CambiarClaveIn(BaseModel):
+    actual: str = Field(min_length=1, max_length=200)
+    nueva: str = Field(min_length=1, max_length=200)
+
+
+@app.post("/api/boveda/cambiar-clave")
+async def boveda_cambiar_clave(c: CambiarClaveIn):
+    try:
+        return await asyncio.to_thread(boveda.cambiar_clave, c.actual, c.nueva)
+    except boveda.ErrorBoveda as e:
+        return _error_boveda(e)
 
 
 class ArchivoIn(BaseModel):
