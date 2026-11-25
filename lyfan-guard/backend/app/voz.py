@@ -430,6 +430,21 @@ _PISTA = ("Conversación en español con LyFan, un asistente que protege de esta
           "contraseña, bóveda, cifrar, descifrar, archivo, carpeta, analiza, revisa, escanea.")
 _HOTWORDS = "LyFan Yape Plin SUNAT WhatsApp Gmail bóveda cifra cifrar encripta encriptar descifra descifrar phishing"
 _UMBRAL_SIN_VOZ = 0.55
+
+
+def _pistas_con_archivos() -> str:
+    """Palabras clave + los nombres de los archivos de la bóveda, para que «Tarea» no se oiga como «Tadea»."""
+    try:
+        from . import boveda  # noqa: PLC0415
+        nombres = []
+        for a in boveda.listar()[:40]:
+            base = re.sub(r"\.lyfan$", "", a["nombre"])
+            base = re.sub(r"\.[^.]+$", "", base)
+            nombres += [p for p in re.split(r"[\s_\-.]+", base) if len(p) >= 3]
+        extra = " ".join(dict.fromkeys(nombres))[:300]
+        return (_HOTWORDS + " " + extra).strip()
+    except Exception:  # noqa: BLE001
+        return _HOTWORDS
 _RE_NOMBRE = re.compile(r"(?i)\b(?:(?:el|ele|l)\s+)?(?:i|y|ye)\s*griega\s*fan\b|\b(?:ly|li|lai|lay|lei|leif)\s?f[aá]n\b|\bly\s?phan\b|\blyf[aá]n\b|\blaif[aá]n\b")
 
 
@@ -514,7 +529,7 @@ def _transcribir_sync(datos: bytes, sufijo: str) -> dict:
         segmentos, info = modelo.transcribe(
             ruta, language="es", beam_size=5, vad_filter=True,
             vad_parameters={"min_silence_duration_ms": 500, "speech_pad_ms": 300},
-            condition_on_previous_text=False, initial_prompt=_PISTA, hotwords=_HOTWORDS,
+            condition_on_previous_text=False, initial_prompt=_PISTA, hotwords=_pistas_con_archivos(),
             temperature=[0.0, 0.2, 0.4])
         partes = []
         for s in segmentos:

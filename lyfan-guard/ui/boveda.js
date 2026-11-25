@@ -42,8 +42,9 @@
   // ---------------------------------------------------------------- entender lo que se pide
   const norm = t => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
   const RE_CIFRAR = /\b(cifr\w*|encript\w*|enkript\w*|protege\w*|asegura\w*)\b/;
-  const RE_DESCIFRAR = /\b(descifr\w*|desencript\w*|desencrip\w*|desprotege\w*)\b/;
-  const RE_MOSTRAR = /\b(muestr\w*|ensen\w*|abre|abreme|abrir (?:la |mi |nuestra )?(?:boveda|carpeta)|ver|veamos|lista\w*|que (hay|tengo|tenemos|archivos)|dime|cuales|pantalla)\b/;
+  const RE_DESCIFRAR = /\b(descifr\w*|decifr\w*|desifr\w*|descrifr\w*|desencript\w*|desencrip\w*|desencrit\w*|desincript\w*|desprotege\w*)\b/;
+  const RE_DESCIFRAR_DUDOSO = /\b(decid\w*|desafi\w*|descubr\w*)\b/;   // así suele oírse «descifra» con ruido; solo vale si nombra un archivo
+  const RE_MOSTRAR = /\b(muestr\w*|ensen\w*|abre|abreme|abr\w* (?:la |l |mi |nuestra |tu )?(?:boveda|carpeta)|ver|veamos|lista\w*|que (hay|tengo|tenemos|archivos)|dime|cuales|pantalla)\b/;
   const RE_ARCH = /\b(archivos?|boveda|carpeta|documentos?)\b/;
   const RE_BLOQUEAR = /\b(bloquea\w*|cierra\w*)\b.*\bboveda\b/;
   const RE_ANALIZAR = /\b(analiza\w*|revisa\w*|escanea\w*|examina\w*|verifica\w*|chequea\w*|es sospechos\w*|es seguro|tiene virus)\b/;
@@ -65,12 +66,22 @@
       if (ext && new RegExp('(^| )' + ext.toLowerCase() + '( |$)').test(u)) p += 0.5;
       return { a, p };
     }).filter(x => x.p > 0).sort((x, y) => y.p - x.p);
-    if (!puntos.length) return [];
+    if (!puntos.length) return elegirParecido(u, archivos);
     return puntos.filter(x => x.p === puntos[0].p).map(x => x.a);
   }
   const quitar = n => n.replace(/\.lyfan$/, '');
   const lista = arr => arr.slice(0, 5).map(a => quitar(a.nombre)).join(', ') + (arr.length > 5 ? '…' : '');
   const pl = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+  // Formas de empezar, para no decir siempre «Claro». «Señor» sale solo de vez en cuando.
+  const azar = a => a[Math.floor(Math.random() * a.length)];
+  let ultimaEntrada = '';
+  function ok() {
+    const base = ['Claro.', 'De acuerdo.', 'Por supuesto.', 'Muy bien.', 'Entendido.', 'Enseguida.', 'Mmm, déjeme ver.', 'Con gusto.', 'Ahora mismo.', 'Perfecto.'];
+    let e; do { e = azar(base); } while (e === ultimaEntrada);
+    ultimaEntrada = e;
+    return Math.random() < 0.3 ? e.replace(/\.$/, ', señor.') : e;
+  }
+  const listo = () => azar(['Listo,', 'Hecho,', 'Ya está,', 'Terminé,']);
 
   // Lo último que se hizo, para entender «vuélvelo a cifrar», «descífralo», «otra vez»
   let ultimos = [];
@@ -89,6 +100,31 @@
     const r = await fetch(ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo || {}) });
     const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'No pude completar la acción.'); return j;
   }
+  // El micrófono a veces entiende mal el nombre: se acepta un nombre parecido (pocas letras distintas)
+  function distancia(a, b) {
+    const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+    for (let j = 1; j <= n; j++) d[0][j] = j;
+    for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[m][n];
+  }
+  const COMUNES = new Set(['para', 'puedes', 'puede', 'quiero', 'quise', 'deseo', 'favor', 'ahora', 'archivo', 'archivos', 'documento', 'carpeta', 'boveda', 'todos', 'todo', 'este', 'esta', 'ese', 'esa', 'tengo', 'tenemos', 'cifra', 'cifrar', 'descifra', 'descifrar', 'encripta', 'desencripta', 'lyfan', 'senor', 'gracias', 'decidir', 'llamado', 'llamada', 'nuestra', 'nuestro']);
+  function elegirParecido(u, archivos) {
+    const palabras = u.trim().split(' ').filter(w => w.length >= 3 && !COMUNES.has(w) && !STOP.has(w));
+    let mejor = [], mejorP = 0;
+    for (const a of archivos) {
+      const stem = norm(a.nombre.replace(/\.lyfan$/, '').replace(/\.[^.]+$/, ''));
+      const toks = stem.split(' ').filter(t => t.length >= 3 && !STOP.has(t));
+      let p = 0;
+      for (const t of toks) for (const w of palabras) {
+        const sim = 1 - distancia(t, w) / Math.max(t.length, w.length);
+        const esqueleto = t.replace(/[aeiou]/g, '') === w.replace(/[aeiou]/g, '') && w[0] === t[0];   // «tda» ≈ «tarea» → «tr»/«td» no; «trbj» = «trbj»
+        if (sim >= 0.6 || (esqueleto && t.length >= 4)) p = Math.max(p, sim);
+      }
+      if (p > mejorP + 0.001) { mejor = [a]; mejorP = p; } else if (p > 0 && Math.abs(p - mejorP) < 0.001) mejor.push(a);
+    }
+    return mejor;
+  }
+
   function elegirEn(lista, texto) {                       // busca en la cuarentena por nombre
     const u = ' ' + norm(texto) + ' ';
     const p = lista.map(e => ({ e, p: norm(e.nombre.replace(/\.[^.]+$/, '')).split(' ').filter(t => t.length >= 3 && !STOP.has(t)).filter(t => u.includes(' ' + t)).length })).filter(x => x.p > 0).sort((a, b) => b.p - a.p);
@@ -105,7 +141,7 @@
         if (!lista.length) return 'No hay nada en cuarentena, señor.';
         if (!e) return `¿Cuál saco de cuarentena? Tengo: ${lista.slice(0, 5).map(x => x.nombre).join(', ')}.`;
         const r = await postJ('/api/cuarentena/restaurar', { id: e.id });
-        return `Listo, devolví ${r.restaurado} a su carpeta y lo marqué como falsa alarma: no lo volveré a señalar.`;
+        return `${listo()} devolví ${r.restaurado} a su carpeta y lo marqué como falsa alarma: no lo volveré a señalar.`;
       }
       if (RE_BORRAR_Q.test(n)) {
         if (!lista.length) return 'La cuarentena está vacía, señor.';
@@ -129,7 +165,7 @@
       const hechos = [];
       for (const a of objetivo) { try { await postJ('/api/cuarentena/poner', { nombre: a.nombre }); hechos.push(a.nombre); } catch { /* sigue */ } }
       if (!hechos.length) return 'No pude ponerlo en cuarentena, señor.';
-      return `Listo, aislé ${hechos.join(', ')} en cuarentena: ya no puede abrirse ni ejecutarse. Si fue una falsa alarma, dígame «sácalo de cuarentena».`;
+      return `${listo()} aislé ${hechos.join(', ')} en cuarentena: ya no puede abrirse ni ejecutarse. Si fue una falsa alarma, dígame «sácalo de cuarentena».`;
     }
     if (RE_ESCANEO.test(n) && !elegir(texto, ((await api('').catch(() => ({}))).archivos || [])).length) {
       if (App.poseTarea) App.poseTarea('scan');
@@ -144,6 +180,19 @@
 
   /** Devuelve lo que LyFan responde (y abre la pantalla si hace falta), o null si no era un pedido sobre la bóveda. */
   async function comando(texto) {
+    const r = await comandoBoveda(texto);
+    if (r !== null) return r;
+    // Era un pedido de la bóveda pero no se entendió (por ejemplo, el nombre se oyó mal): no se lo pasamos al modelo,
+    // que podría decir que abrió algo sin hacerlo. Se abre la bóveda para que la persona vea los nombres.
+    const n = norm(texto);
+    const deBoveda = /\b(\w*cifr\w*|\w*encript\w*|\w*encrip\w*|\w*crypt\w*|boveda)\b/.test(n) || (RE_DESCIFRAR_DUDOSO.test(n) && /\barchivo\b/.test(n));
+    const pregunta = RE_PREGUNTA.test(n) || (RE_CAPACIDAD.test(n) && !/\b(el|la|mi|este|ese|esta|esa) (archivo|documento)\b/.test(n)) || /\b(que|como|cual|cuando|por que)\b.*\b(contrasena|aes|seguro|segura|funciona)\b/.test(n);
+    if (!deBoveda || pregunta) return null;
+    abrirPantalla({ accion: 'mostrar', filtro: 'todos' });
+    return 'Disculpe, no reconocí bien qué archivo quiere. Le abrí la bóveda en pantalla: dígame el nombre tal como aparece, por ejemplo «descifra tarea», o use los botones.';
+  }
+
+  async function comandoBoveda(texto) {
     const n = norm(texto);
     if (!n || n.length > 240) return null;
     try { const av = await comandoAntivirus(texto, n); if (av !== null) return av; } catch (e) { return 'No pude completar eso: ' + e.message; }
@@ -151,7 +200,7 @@
       return 'Señor, no me diga su contraseña ni por voz ni por escrito. Escríbala solo en la ventana de la bóveda.';
     if (RE_CAMBIAR_CLAVE.test(n) && /\b(boveda|maestra|cambia\w*|cambiar)\b/.test(n) && !RE_PREGUNTA.test(n)) {
       abrirPantalla({ accion: 'cambiar' });
-      return 'Claro. En la pantalla escriba primero su contraseña actual y luego la nueva. Su bóveda usa una sola contraseña para todos los archivos.';
+      return `${ok()} En la pantalla escriba primero su contraseña actual y luego la nueva. Su bóveda usa una sola contraseña para todos los archivos.`;
     }
     let est;
     try { est = await api(''); } catch { return null; }
@@ -160,7 +209,7 @@
 
     const hablaDeBoveda = /\b(boveda|carpeta)\b/.test(n);
     const nv = n.replace(/\b(?:des)?(?:cifr|encript|encrip|protegid)\w*(?:ado|ada|ados|adas|ido|idos)\b/g, ' ');   // «cifrados» no es una orden
-    const descifrar = RE_DESCIFRAR.test(nv);
+    const descifrar = RE_DESCIFRAR.test(nv) || (RE_DESCIFRAR_DUDOSO.test(nv) && !RE_CIFRAR.test(nv) && elegir(texto, archivos.filter(a => a.cifrado)).length > 0);
     const cifrar = !descifrar && RE_CIFRAR.test(nv);
     const bloquear = RE_BLOQUEAR.test(n) && !cifrar && !descifrar;
     let nombrados = elegir(texto, archivos);
@@ -174,15 +223,15 @@
     const mostrar = !cifrar && !descifrar && !analizar && !leer && RE_MOSTRAR.test(n) && RE_ARCH.test(n) && !/\b(peligros\w*|malicios\w*|sospech\w*|virus|malware|estafa|riesgo|seguro|abrirlo|abrirla)\b/.test(n);
     if (!(cifrar || descifrar || analizar || leer || mostrar || bloquear)) return null;
     if (RE_PREGUNTA.test(n)) return null;                                   // «¿qué es cifrar?» lo responde el modelo
-    if ((cifrar || descifrar || analizar) && RE_CAPACIDAD.test(n) && !nombrados.length && !todos) return null;   // «¿puedes cifrar archivos?» lo responde el modelo
+    if ((cifrar || descifrar || analizar) && RE_CAPACIDAD.test(n) && !nombrados.length && !todos && !/\b(el|la|mi|este|ese) (archivo|documento)\b/.test(n)) return null;   // «¿puedes cifrar archivos?» lo responde el modelo
     if ((cifrar || descifrar) && !(hablaDeBoveda || /\b(archivo|archivos|documento|documentos|foto|fotos|todo|todos|todas|lo|la|los|las)\b/.test(n) || nombrados.length || RE_PRONOMBRE.test(n))) return null;
 
-    if (bloquear) { await api('/bloquear', {}); return 'Listo, su bóveda quedó bloqueada.'; }
+    if (bloquear) { await api('/bloquear', {}); return `${listo()} su bóveda quedó bloqueada.`; }
 
     if (!est.creada) {                                                      // primera vez: LyFan pide crear la contraseña y luego sigue con lo pedido
       abrirPantalla({ accion: 'crear', reintentar: cifrar || analizar ? texto : null });
       return cifrar
-        ? 'Claro, señor. Como es la primera vez, primero debe crear su contraseña maestra. Escríbala dos veces en la ventana que le abrí y, apenas la cree, cifro su archivo.'
+        ? `${ok()} Como es la primera vez, primero debe crear su contraseña maestra. Escríbala dos veces en la ventana que le abrí y, apenas la cree, cifro su archivo.`
         : 'Aún no tiene una bóveda, señor. Le abrí la pantalla para que cree su contraseña maestra.';
     }
 
@@ -192,7 +241,7 @@
       abrirPantalla({ accion: 'mostrar', filtro });
       const cuenta = filtro === 'cifrados' ? con.length : filtro === 'claro' ? sin.length : archivos.length;
       const que = filtro === 'cifrados' ? 'cifrados' : filtro === 'claro' ? 'sin cifrar' : 'en total';
-      return `Claro. Le muestro la bóveda en pantalla: ${cuenta === 0 ? 'no hay archivos' : pl(cuenta, 'archivo', 'archivos')} ${cuenta === 0 ? 'en ese filtro' : que}.`;
+      return `${ok()} ${azar(['Le muestro la bóveda en pantalla', 'Aquí tiene su bóveda en pantalla', 'Le abro la bóveda'])}: ${cuenta === 0 ? 'no hay archivos' : pl(cuenta, 'archivo', 'archivos')} ${cuenta === 0 ? 'en ese filtro' : que}.`;
     }
 
     // ¿a qué archivo(s) se refiere?
@@ -224,16 +273,16 @@
     if (cifrar) {
       abrirPantalla({ accion: 'cifrar', nombres });
       return est.bloqueada
-        ? `Claro. Para cifrar ${que}, escriba su contraseña en la ventana de la pantalla, señor.`
-        : `Claro. Cifrando ${que}; verá que desaparece de la carpeta.`;
+        ? `${ok()} Para cifrar ${que}, escriba su contraseña en la ventana de la pantalla.`
+        : `${ok()} ${azar(['Cifrando', 'Protejo', 'Voy a cifrar'])} ${que}; verá que desaparece de la carpeta.`;
     }
     if (descifrar) {
       abrirPantalla({ accion: 'descifrar', nombres });
-      return `Claro, señor. Introduzca la contraseña en la ventana para descifrar ${que}.`;
+      return `${ok()} ${azar(['Introduzca la contraseña en la ventana', 'Escriba su contraseña en la ventana', 'Le abrí la ventana: escriba su contraseña'])} para descifrar ${que}.`;
     }
     if (leer) { abrirPantalla({ accion: 'ver', nombres }); return `Aquí tiene el contenido de ${que}, señor.`; }
     abrirPantalla({ accion: 'analizar', nombres });
-    return `Con gusto. Reviso ${que} en su equipo y le cuento qué encuentro.`;
+    return `${ok()} ${azar(['Reviso', 'Analizo', 'Escaneo'])} ${que} en su equipo y le cuento qué encuentro.`;
   }
 
   // El escaneo automático le cuenta a la bóveda qué encontró, para entender «ponlo en cuarentena»

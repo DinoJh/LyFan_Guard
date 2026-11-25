@@ -238,7 +238,7 @@
       let local = null;
       if (!forzarAnalisis && RE_PRINCIPAL.test(normal(texto))) {
         abrirPrincipal();
-        local = azar(['Claro. Aquí tiene mi ventana principal.', 'Con gusto, le abro mi ventana principal.', 'Por supuesto. Ya le muestro mi ventana principal.']);
+        local = azar(['Claro. Aquí tiene mi ventana principal.', 'Con gusto, le abro mi ventana principal.', 'Por supuesto, señor. Ya le muestro mi ventana principal.', 'De acuerdo, aquí estoy en grande.', 'Mmm, ¿quiere verme mejor? Aquí tiene mi ventana principal.', 'Enseguida. Le abro mi interfaz.']);
       }
       try { if (local === null && window.LyFanBoveda && !forzarAnalisis) local = await window.LyFanBoveda.comando(texto); } catch (e) { console.warn('Bóveda:', e); }
       if (local !== null) {
@@ -554,7 +554,7 @@
 
   // ================================================================== ventana principal
   const normal = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
-  const RE_PRINCIPAL = /\b(muestrate|mostrarte|aparece|abrete|(abre|abri|muestra|ensena|ensename|muestrame|pon|ponme|quiero ver) (tu|la|su) (ventana|interfaz|pantalla|aplicacion|app|panel)( principal)?|(ventana|interfaz|pantalla|panel) principal)\b/;
+  const RE_PRINCIPAL = /\b(muestrate|mostrarte|te muestres|muestres tu\b(?! [a-z]+ (?:archivo|boveda|documento))|me muestres tu$|muestrame tu$|tu (?:interfaz|ventana|aplicacion|panel)|aparece|abrete|(abre|abri|muestra|ensena|ensename|muestrame|pon|ponme|quiero ver) (tu|la|su) (ventana|interfaz|pantalla|aplicacion|app|panel)( principal)?|(ventana|interfaz|pantalla|panel) principal)\b/;
   function abrirPrincipal() {
     if (escritorio && escritorio.abrirPrincipal) escritorio.abrirPrincipal();
     else window.open('/principal.html', 'lyfan-principal');

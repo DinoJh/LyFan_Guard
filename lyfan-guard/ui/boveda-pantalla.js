@@ -13,6 +13,7 @@
   const hora = () => new Date().toTimeString().slice(0, 8);
   const sinLyfan = n => n.replace(/\.lyfan$/, '');
   const extDe = n => { const m = sinLyfan(n).match(/\.([A-Za-z0-9]{1,5})$/); return m ? m[1] : 'ARCH'; };
+  const listo = () => ['Listo,', 'Hecho,', 'Ya está,', 'Terminé,'][Math.floor(Math.random() * 4)];
   const avisarLyFan = (texto, tarea, nivel) => { if (canal) canal.postMessage({ tipo: 'resultado', texto, tarea, nivel }); };
   const avisarPose = pose => { if (canal) canal.postMessage({ tipo: 'pose', pose }); };
 
@@ -201,7 +202,7 @@
       actual = '';
       if (!paso2) { log('aviso', 'Cambio de contraseña cancelado: sigue valiendo la anterior.'); return; }
       log('ok', `✔ Contraseña cambiada. ${res.recifrados} archivo(s) cifrados de nuevo con la nueva contraseña.`);
-      avisarLyFan('Listo, su bóveda ya usa la nueva contraseña. La anterior dejó de servir.', 'encrypt', 'tranquilo');
+      avisarLyFan(listo() + ' su bóveda ya usa la nueva contraseña. La anterior dejó de servir.', 'encrypt', 'tranquilo');
     } finally { ocupado = false; }
   }
 
@@ -220,7 +221,7 @@
           log('ok', `✔ ${n} → ${r.cifrado}  [AES-256-GCM] · original eliminado de la carpeta`);
         } catch (e) { log('err', `✖ ${n}: ${e.message}`); }
       }
-      avisarLyFan(hechos.length ? `Listo, cifré ${hechos.length === 1 ? hechos[0] : hechos.length + ' archivos'}, señor.` : 'No pude cifrar ese archivo, señor.', 'encrypt', hechos.length ? 'tranquilo' : 'alerta');
+      avisarLyFan(hechos.length ? `${listo()} cifré ${hechos.length === 1 ? hechos[0] : hechos.length + ' archivos'}, señor.` : 'No pude cifrar ese archivo, señor.', 'encrypt', hechos.length ? 'tranquilo' : 'alerta');
     } finally { ocupado = false; avisarPose(null); }
   }
 
@@ -240,7 +241,7 @@
       for (const f of res.fallos || []) log('err', `✖ ${f}`);
       pintar(await api(''));
       const bien = (res.descifrados || []).length;
-      avisarLyFan(bien ? `Listo, descifré ${res.descifrados.length === 1 ? res.descifrados[0] : res.descifrados.length + ' archivos'}, señor.` : 'No pude descifrar el archivo, señor.', 'decrypt', bien ? 'tranquilo' : 'alerta');
+      avisarLyFan(bien ? `${listo()} descifré ${res.descifrados.length === 1 ? res.descifrados[0] : res.descifrados.length + ' archivos'}, señor.` : 'No pude descifrar el archivo, señor.', 'decrypt', bien ? 'tranquilo' : 'alerta');
     } finally { ocupado = false; avisarPose(null); }
   }
 
@@ -253,7 +254,7 @@
       const j = await r.json(); if (!r.ok) throw new Error(j.error || 'No pude aislarlo.');
       marcados.delete(nombre); await refrescar();
       log('ok', `✔ ${nombre} aislado en cuarentena: ya no puede abrirse ni ejecutarse.`);
-      avisarLyFan(`Listo, puse ${nombre} en cuarentena. Si fue una falsa alarma, dígame «saca ${nombre.replace(/\.[^.]+$/, '')} de cuarentena».`, 'scan', 'tranquilo');
+      avisarLyFan(`${listo()} puse ${nombre} en cuarentena. Si fue una falsa alarma, dígame «saca ${nombre.replace(/\.[^.]+$/, '')} de cuarentena».`, 'scan', 'tranquilo');
     } catch (e) { log('err', `✖ ${nombre}: ${e.message}`); }
   }
 
