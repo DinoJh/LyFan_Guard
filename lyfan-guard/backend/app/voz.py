@@ -140,6 +140,7 @@ def limpiar_para_voz(texto: str) -> str:
     t = _RE_URL.sub("un enlace", texto)
     t = _RE_EMOJI.sub("", t)
     t = re.sub(r"[*_`#>]+", "", t)
+    t = re.sub(r"(?i)\b(?:m{2,}|h+m+|u+h*m+|e+h{2,}|a+h{2,})\b[\s.,…!¡¿?]*", "", t)   # «Mmm…» se leía «eme eme eme"
     t = re.sub(r"^\s*[-•]\s+", "", t, flags=re.M)
     t = re.sub(r"\s+", " ", t).strip()
     if len(t) > MAX_TEXTO:

@@ -22,6 +22,7 @@
     document.querySelectorAll('.vista').forEach(s => s.classList.toggle('activa', s.id === 'v-' + v));
     if (v === 'boveda') cargarBoveda();
     if (v === 'proteccion') cargarProteccion(false);
+    if (v === 'correo') cargarCorreo(false);
     if (v === 'actividad') pintarActividad();
     if (v === 'inicio') setTimeout(() => $('entrada').focus(), 50);
   }
@@ -111,6 +112,16 @@
   });
   $('a-pegar').addEventListener('click', async () => {
     try { const t = await navigator.clipboard.readText(); if (t) $('a-texto').value = t; } catch { $('a-texto').focus(); }
+  });
+  $('a-pagina').addEventListener('click', async () => {      // revisa la pestaña activa del navegador
+    const b = $('a-pagina'); b.disabled = true; b.textContent = 'Revisando la página…';
+    try {
+      const r = await postJ('/api/navegador/revisar', {});
+      $('a-texto').value = r.url;
+      mostrarAnalisis({ ...r, razones: r.razones, accion: r.accion });
+      $('a-titulo').textContent = (r.nivel === 'tranquilo' ? 'Página sin señales de phishing' : r.nivel === 'alerta' ? 'Página sospechosa' : 'Posible página de phishing') + ' · ' + (r.dominio || '');
+    } catch (e) { $('a-resultado').hidden = false; $('a-titulo').textContent = e.message; $('a-razones').textContent = ''; $('a-accion').textContent = ''; }
+    finally { b.disabled = false; b.textContent = 'Revisar la página que tengo abierta'; }
   });
   const TITULOS = { tranquilo: 'Todo en orden', alerta: 'Atención: es sospechoso', peligro: 'Cuidado: posible estafa' };
   const NIVELES = { tranquilo: 'No encontré señales de peligro.', alerta: 'Tiene señales sospechosas.', peligro: 'Tiene muchas señales de estafa.' };
@@ -216,6 +227,66 @@
     setTimeout(() => cargarProteccion(true), conectado ? 2500 : 0);
   });
 
+  // ---------------------------------------------------------------- correo (Gmail, solo lectura)
+  try { $('c-auto').checked = localStorage.getItem('lyfan-correo-auto') !== 'no'; } catch { /* sin preferencias */ }
+  $('c-auto').addEventListener('change', e => { try { localStorage.setItem('lyfan-correo-auto', e.target.checked ? 'si' : 'no'); } catch { /* no es grave */ } });
+  let esperaLogin = 0;
+  function pintarEstadoCorreo(e) {
+    $('c-paso-cred').hidden = !!e.credenciales;
+    $('c-paso-login').hidden = !e.credenciales || e.conectado;
+    $('c-conectado').hidden = !e.conectado;
+    $('c-estado').textContent = e.conectado ? '✓ ' + (e.cuenta || 'Conectado') : e.credenciales ? 'Falta iniciar sesión' : 'Sin conectar';
+    $('c-estado').dataset.e = e.conectado ? 'abierta' : 'bloqueada';
+  }
+  function pintarCorreos(r) {
+    const ul = $('c-lista'); ul.textContent = '';
+    const sos = r.sospechosos || [];
+    $('c-resumen').dataset.e = sos.length ? 'alerta' : '';
+    $('c-titulo').textContent = sos.length ? `${sos.length === 1 ? '1 correo sospechoso' : sos.length + ' correos sospechosos'}` : 'Su bandeja se ve segura';
+    $('c-detalle').textContent = `Revisé ${r.revisados} correos recientes de ${r.cuenta || 'su cuenta'} · ${hora()}`;
+    if (!(r.correos || []).length) { filaVacia(ul, 'No hay correos recientes en la bandeja de entrada.'); return; }
+    const orden = { peligro: 0, alerta: 1, tranquilo: 2 };
+    for (const c of [...r.correos].sort((a, b) => orden[a.nivel] - orden[b.nivel] || b.fecha - a.fecha)) {
+      const li = document.createElement('li'); li.dataset.n = c.nivel;
+      li.innerHTML = '<span class="punto"></span><div><div class="asunto"></div><div class="de"></div></div><span class="hora"></span><div class="por"></div>';
+      li.querySelector('.asunto').textContent = c.asunto;
+      li.querySelector('.de').textContent = c.de + (c.de_correo && c.de !== c.de_correo ? ` <${c.de_correo}>` : '');
+      li.querySelector('.hora').textContent = new Date(c.fecha * 1000).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      li.querySelector('.por').textContent = (c.razones || []).slice(0, 2).join(' · ') + (c.accion ? ' — ' + c.accion : '');
+      ul.append(li);
+    }
+  }
+  async function cargarCorreo(revisarYa) {
+    let e; try { e = await (await fetch('/api/correo')).json(); } catch { return; }
+    pintarEstadoCorreo(e);
+    if (e.conectado && (revisarYa || !$('c-lista').childElementCount)) {
+      $('c-titulo').textContent = 'Revisando su bandeja…'; $('c-resumen').dataset.e = 'escaneando';
+      try { const r = await postJ('/api/correo/revisar', { cantidad: 15 }); pintarCorreos(r); }
+      catch (err) { $('c-titulo').textContent = 'No pude revisar'; $('c-detalle').textContent = err.message; $('c-resumen').dataset.e = 'alerta'; }
+    }
+  }
+  $('c-cargar').addEventListener('click', () => $('c-archivo').click());
+  $('c-archivo').addEventListener('change', async ev => {
+    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+    try { pintarEstadoCorreo(await postJ('/api/correo/credenciales', { contenido: await f.text() })); $('c-cred-msg').textContent = ''; }
+    catch (err) { $('c-cred-msg').textContent = err.message; }
+  });
+  $('c-conectar').addEventListener('click', async () => {
+    try { await postJ('/api/correo/conectar', {}); } catch (err) { $('c-login-msg').textContent = err.message; return; }
+    $('c-login-msg').textContent = 'Le abrí Google en su navegador. Acepte el permiso de solo lectura y vuelva aquí…';
+    clearInterval(esperaLogin); let vueltas = 0;
+    esperaLogin = setInterval(async () => {                  // espera a que termine el inicio de sesión
+      vueltas++;
+      try { const e = await (await fetch('/api/correo')).json(); if (e.conectado) { clearInterval(esperaLogin); burbuja('¡Listo! Ya puedo revisar su correo.'); cargarCorreo(true); } } catch { /* sigue */ }
+      if (vueltas > 150) clearInterval(esperaLogin);
+    }, 2000);
+  });
+  $('c-revisar').addEventListener('click', () => cargarCorreo(true));
+  $('c-desconectar').addEventListener('click', async () => {
+    if (!confirm('¿Desconectar Gmail? LyFan dejará de revisar sus correos.')) return;
+    try { pintarEstadoCorreo(await postJ('/api/correo/desconectar', {})); $('c-lista').textContent = ''; } catch { /* sin conexión */ }
+  });
+
   // ---------------------------------------------------------------- actividad
   function pintarActividad() {
     $('s-mensajes').textContent = historial.filter(m => m.rol === 'usuario').length;
@@ -263,6 +334,9 @@
       case 'analisis': mostrarAnalisis(d.datos); break;
       case 'mic': pintarMic(d.estado); break;
       case 'escaneo': if (d.datos) pintarEscaneo(d.datos); break;
+      case 'correos': if (d.datos) pintarCorreos(d.datos); break;
+      case 'pagina': if (d.datos) { mostrarAnalisis(d.datos); $('a-texto').value = d.datos.url || ''; } break;
+      case 'ir': if (d.vista) ir(d.vista); break;
       case 'voz': $('bt-voz').setAttribute('aria-pressed', String(!!d.activa)); break;
       default: break;
     }
@@ -271,6 +345,7 @@
   window.addEventListener('beforeunload', () => enviarALyFan({ tipo: 'adios' }));
   document.addEventListener('lyfan:listo', () => { saludarALyFan(); });
   saludarALyFan(); setTimeout(() => { if (!conectado) saludarALyFan(); }, 1500);
-  setTimeout(() => { if (!conectado) { burbuja('No encuentro a LyFan. Abra LyFan Guard para conversar.'); $('estado-ia').dataset.e = 'off'; } }, 4000);
+  setTimeout(() => { if (!conectado) { burbuja('No encuentro a LyFan. Abra LyFan Guard para conversar.'); } }, 4000);
   pintarMensajes(); ajustar();
+  try { const v = localStorage.getItem('lyfan-principal-vista'); if (v) { localStorage.removeItem('lyfan-principal-vista'); ir(v); } } catch { /* nada */ }
 })();

@@ -160,6 +160,21 @@ h2 { font-size: 15px; }
 .archivos .peq { padding: 6px 11px; border-radius: 10px; font-size: 12px; }
 .archivos .rojo-t { color: var(--rojo); }
 
+/* ---------------------------------------------------------- correo */
+.pasos { padding: 18px 20px; border-radius: var(--radio); border: 1px solid var(--linea); background: var(--sup); display: flex; flex-direction: column; gap: 10px; }
+.pasos ol { margin: 0; padding-left: 22px; color: var(--suave); display: flex; flex-direction: column; gap: 6px; }
+.pasos b { color: var(--texto); font-weight: 600; }
+.correos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.correos li { display: grid; grid-template-columns: 12px 1fr auto; gap: 4px 12px; align-items: start; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--linea); background: var(--sup); }
+.correos .punto { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--menta); }
+.correos li[data-n=alerta] { border-color: #6d5533; } .correos li[data-n=alerta] .punto { background: var(--ambar); }
+.correos li[data-n=peligro] { border-color: #8d4744; background: linear-gradient(135deg, #1d1416, var(--sup)); } .correos li[data-n=peligro] .punto { background: var(--rojo); }
+.correos .asunto { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.correos .de { color: var(--suave); font-size: 12.5px; }
+.correos .hora { color: var(--tenue); font-size: 12px; white-space: nowrap; }
+.correos .por { grid-column: 2 / 4; color: var(--suave); font-size: 12.5px; }
+.correos li[data-n=tranquilo] .por { display: none; }
+
 /* ---------------------------------------------------------- secciones */
 .fila { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .boton { padding: 10px 16px; border-radius: 12px; border: 1px solid var(--linea2); background: var(--sup2); color: var(--texto); font-weight: 500; }
@@ -228,3 +243,5 @@ textarea.grande:focus { border-color: #3a6d63; }
   #v-inicio { grid-template-columns: 1fr 340px; }
   .consejos { grid-template-columns: 1fr; }
 }
+
+[hidden] { display: none !important; }

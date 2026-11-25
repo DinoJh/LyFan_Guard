@@ -76,7 +76,7 @@
   const azar = a => a[Math.floor(Math.random() * a.length)];
   let ultimaEntrada = '';
   function ok() {
-    const base = ['Claro.', 'De acuerdo.', 'Por supuesto.', 'Muy bien.', 'Entendido.', 'Enseguida.', 'Mmm, déjeme ver.', 'Con gusto.', 'Ahora mismo.', 'Perfecto.'];
+    const base = ['Claro.', 'De acuerdo.', 'Por supuesto.', 'Muy bien.', 'Entendido.', 'Enseguida.', 'Déjeme ver.', 'Con gusto.', 'Ahora mismo.', 'Perfecto.'];
     let e; do { e = azar(base); } while (e === ultimaEntrada);
     ultimaEntrada = e;
     return Math.random() < 0.3 ? e.replace(/\.$/, ', señor.') : e;

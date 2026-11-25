@@ -12,11 +12,11 @@ from contextlib import asynccontextmanager
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import antivirus, boveda, cuarentena, detector, llm, voz
+from . import antivirus, boveda, correo, cuarentena, detector, llm, navegador, voz
 
 BASE = Path(__file__).resolve().parents[1]          # lyfan-guard/backend
 UI_DIR = BASE.parent / "ui"                          # lyfan-guard/ui
@@ -299,6 +299,93 @@ async def cuarentena_eliminar(c: IdIn):
         return await asyncio.to_thread(cuarentena.eliminar, c.id)
     except cuarentena.ErrorCuarentena as e:
         return _error_cuarentena(e)
+
+
+# ------------------------------------------------------------------ correo (Gmail, solo lectura)
+class CredencialesIn(BaseModel):
+    contenido: str = Field(min_length=10, max_length=20000)
+
+
+class RevisarCorreoIn(BaseModel):
+    cantidad: int = Field(default=15, ge=1, le=30)
+    solo_nuevos: bool = False
+
+
+def _error_correo(e) -> JSONResponse:
+    return JSONResponse({"error": e.mensaje}, status_code=e.codigo)
+
+
+@app.get("/api/correo")
+async def correo_estado():
+    return correo.estado()
+
+
+@app.post("/api/correo/credenciales")
+async def correo_credenciales(c: CredencialesIn):
+    try:
+        return correo.guardar_credenciales(c.contenido)
+    except correo.ErrorCorreo as e:
+        return _error_correo(e)
+
+
+@app.post("/api/correo/conectar")
+async def correo_conectar():
+    """Abre en el navegador la página oficial de Google para dar permiso de solo lectura."""
+    import webbrowser  # noqa: PLC0415
+    try:
+        url = correo.url_autorizacion(f"http://127.0.0.1:{PUERTO}/api/correo/oauth")
+    except correo.ErrorCorreo as e:
+        return _error_correo(e)
+    webbrowser.open(url)
+    return {"url": url}
+
+
+_PAGINA_OAUTH = """<!doctype html><html lang="es"><meta charset="utf-8"><title>LyFan Guard</title>
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#0a1016;color:#e8eef3;font:16px Segoe UI,system-ui,sans-serif">
+<div style="max-width:440px;padding:32px;border:1px solid #1f2d38;border-radius:18px;background:#0f171e;text-align:center">
+<div style="font-size:42px">{icono}</div><h1 style="font-size:22px;margin:8px 0">{titulo}</h1><p style="color:#93a7b5">{texto}</p></div></body></html>"""
+
+
+@app.get("/api/correo/oauth", response_class=HTMLResponse)
+async def correo_oauth(code: str = "", state: str = "", error: str = ""):
+    if error or not code:
+        return HTMLResponse(_PAGINA_OAUTH.format(icono="✋", titulo="No se conectó", texto="No se dio el permiso. Puede cerrar esta pestaña e intentarlo otra vez desde LyFan."))
+    try:
+        est = await asyncio.to_thread(correo.completar, code, state)
+    except correo.ErrorCorreo as e:
+        return HTMLResponse(_PAGINA_OAUTH.format(icono="⚠️", titulo="No se pudo conectar", texto=e.mensaje), status_code=e.codigo)
+    cuenta = est.get("cuenta") or "su cuenta"
+    return HTMLResponse(_PAGINA_OAUTH.format(icono="🛡️", titulo="¡Listo! LyFan está conectado",
+                                             texto=f"LyFan ya puede revisar los correos de {cuenta} con permiso de solo lectura. Puede cerrar esta pestaña."))
+
+
+@app.post("/api/correo/revisar")
+async def correo_revisar(c: RevisarCorreoIn):
+    try:
+        return await asyncio.to_thread(correo.revisar, c.cantidad, c.solo_nuevos)
+    except correo.ErrorCorreo as e:
+        return _error_correo(e)
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"error": "No pude conectarme con Gmail (¿hay internet?)."}, status_code=502)
+
+
+@app.post("/api/correo/desconectar")
+async def correo_desconectar():
+    return await asyncio.to_thread(correo.desconectar)
+
+
+# ------------------------------------------------------------------ ¿esta página es segura?
+class PaginaIn(BaseModel):
+    url: str | None = Field(default=None, max_length=4000)
+
+
+@app.post("/api/navegador/revisar")
+async def navegador_revisar(c: PaginaIn):
+    """Sin url: lee la pestaña activa del navegador. Analiza el dominio y el código de la página (sin ejecutarlo)."""
+    try:
+        return await asyncio.to_thread(navegador.revisar, c.url)
+    except navegador.ErrorNavegador as e:
+        return JSONResponse({"error": e.mensaje}, status_code=e.codigo)
 
 
 @app.post("/api/boveda/leer")

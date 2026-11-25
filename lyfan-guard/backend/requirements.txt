@@ -9,3 +9,4 @@ av>=14,<17     # faster-whisper aún no funciona con av 17 o superior
 nvidia-cublas-cu12; sys_platform == "win32" or sys_platform == "linux"
 nvidia-cudnn-cu12; sys_platform == "win32" or sys_platform == "linux"
 cryptography>=43
+uiautomation>=2.0.18; sys_platform == "win32"

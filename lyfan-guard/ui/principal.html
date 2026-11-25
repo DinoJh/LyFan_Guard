@@ -33,6 +33,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
       <span>Protección</span>
     </button>
+    <button class="item" data-v="correo" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      <span>Correo</span>
+    </button>
     <button class="item" data-v="boveda" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       <span>Bóveda</span>
@@ -131,6 +135,7 @@
         <div class="fila">
           <button type="button" class="boton primario" id="a-analizar">Analizar ahora</button>
           <button type="button" class="boton" id="a-pegar">Pegar del portapapeles</button>
+          <button type="button" class="boton" id="a-pagina">Revisar la página que tengo abierta</button>
           <span class="tenue">Para archivos (.bat, .txt…) use la Bóveda.</span>
         </div>
         <article class="resultado" id="a-resultado" hidden>
@@ -177,6 +182,56 @@
           <div><b>Qué revisa</b><span>Scripts (.bat, .ps1, .vbs, .js), programas (.exe, .dll), Office con macros, PDF, .zip, accesos directos y texto.</span></div>
           <div><b>Cómo detecta</b><span>Firmas conocidas (como EICAR) y heurística: busca lo que suelen hacer los virus.</span></div>
           <div><b>Sea realista</b><span>Es un revisor sencillo: mantenga también activo Windows Defender.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== CORREO (Gmail, solo lectura) -->
+    <section class="vista" id="v-correo" aria-label="Correo">
+      <div class="panel ancho">
+        <div class="cab-seccion">
+          <div>
+            <h1>Correo</h1>
+            <p class="sub">LyFan revisa su Gmail en busca de estafas y phishing. Permiso de <b>solo lectura</b>: no puede enviar, borrar ni mover correos.</p>
+          </div>
+          <span class="chip-estado" id="c-estado">—</span>
+        </div>
+
+        <!-- paso 1: credenciales -->
+        <div class="pasos" id="c-paso-cred" hidden>
+          <h2>Conectar Gmail por primera vez</h2>
+          <ol>
+            <li>Entre a <b>console.cloud.google.com</b> con su cuenta y cree un proyecto (por ejemplo «LyFan Guard»).</li>
+            <li>En <b>APIs y servicios → Biblioteca</b>, busque <b>Gmail API</b> y pulse <b>Habilitar</b>.</li>
+            <li>En <b>Google Auth Platform</b> (antes «Pantalla de consentimiento»), pulse <b>Comenzar</b>: nombre «LyFan Guard», su correo, público <b>Externo</b>.</li>
+            <li>En <b>Público → Usuarios de prueba</b>, agregue su propio correo de Gmail.</li>
+            <li>En <b>Clientes → Crear cliente</b>, elija <b>App de escritorio</b> y descargue el JSON.</li>
+            <li>Cárguelo aquí. Se queda solo en este equipo. Al conectar, Google dirá «no verificó esta app»: es la suya, pulse <b>Continuar</b>.</li>
+          </ol>
+          <div class="fila">
+            <button type="button" class="boton primario" id="c-cargar">Cargar credentials.json</button>
+            <input type="file" id="c-archivo" accept=".json,application/json" hidden>
+            <span class="tenue" id="c-cred-msg"></span>
+          </div>
+        </div>
+
+        <!-- paso 2: iniciar sesión con Google -->
+        <div class="escudo" id="c-paso-login" hidden>
+          <div class="escudo-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
+          <div><b>Inicie sesión con Google</b><span id="c-login-msg">Se abrirá la página oficial de Google en su navegador. LyFan nunca ve su contraseña.</span></div>
+          <button type="button" class="boton primario" id="c-conectar">Conectar con Google</button>
+        </div>
+
+        <!-- conectado -->
+        <div id="c-conectado" hidden>
+          <div class="escudo" id="c-resumen">
+            <div class="escudo-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
+            <div><b id="c-titulo">Bandeja de entrada</b><span id="c-detalle">—</span></div>
+            <button type="button" class="boton primario" id="c-revisar">Revisar ahora</button>
+          </div>
+          <label class="interruptor"><input type="checkbox" id="c-auto" checked> <span>Revisar mis correos nuevos en segundo plano y avisarme si algo es sospechoso</span></label>
+          <ul class="correos" id="c-lista"></ul>
+          <div class="fila"><button type="button" class="boton" id="c-desconectar">Desconectar Gmail</button><span class="tenue">Al desconectar, Google también olvida el permiso de LyFan.</span></div>
         </div>
       </div>
     </section>

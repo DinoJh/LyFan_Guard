@@ -70,6 +70,12 @@ Revisa por dentro, sin ejecutarlos, los archivos de la bóveda: scripts (.bat, .
 - **Cuarentena** (`~/.lyfan-guard/cuarentena`): el archivo se aísla neutralizado. «Pon X en cuarentena», «qué hay en cuarentena», «saca X de cuarentena» (falsa alarma: no se vuelve a marcar) o «elimina X de la cuarentena». También desde la pantalla de la bóveda (botón CUARENTENA tras analizar) y la ventana principal.
 - Es un revisor sencillo, no protección en tiempo real: conviene mantener Windows Defender activo.
 
+## Correo (Gmail, solo lectura)
+En la ventana principal → **Correo**: se carga una vez un `credentials.json` de Google Cloud (Gmail API activada, «App de escritorio», su correo como usuario de prueba) y se inicia sesión en la página oficial de Google (OAuth 2.0 con PKCE). El único permiso es `gmail.readonly`; el token se guarda cifrado con DPAPI de Windows en `~/.lyfan-guard/gmail`. LyFan analiza en el equipo los correos recientes: remitentes que suplantan bancos o instituciones, enlaces falsos, urgencia, SPF/DMARC fallidos y adjuntos peligrosos. «Revisa mis correos» por voz; cada 10 minutos revisa lo nuevo y avisa con alerta. «Desconectar» revoca el permiso en Google.
+
+## ¿Esta página es segura?
+Diga «LyFan, ¿esta página es segura?» (o «revisa la página que tengo abierta»), o use *Analizar → Revisar la página que tengo abierta* en la ventana principal. LyFan lee la dirección de la pestaña activa de Chrome, Edge, Brave, Opera, Vivaldi o Firefox con la accesibilidad de Windows (sin tocar el teclado ni el portapapeles), revisa el dominio y descarga el código de la página **sin ejecutarlo** para buscar phishing: se presenta como un banco en un dominio que no es suyo, pide clave/tarjeta/token, envía el formulario a otro sitio, redirige, código ofuscado, hospedajes gratuitos, envío a Telegram/Discord. No descarga direcciones privadas de la red local.
+
 ## Bóveda (archivos cifrados)
 La carpeta `Documentos\LyFan Bóveda` (cambiable con `LYFAN_BOVEDA`) es el lugar de trabajo: LyFan encuentra ahí los archivos por su nombre, así que no hay que decirle rutas. Se abre en una **pantalla completa estilo consola** (engranaje → *Bóveda*, o a pedido de LyFan).
 

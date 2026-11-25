@@ -69,7 +69,7 @@
   const FRASES_POSE = {                                     // las frases del diseño, en tono respetuoso
     idle: 'A sus órdenes, señor. ¿Revisamos algo juntos?',
     listen: 'Lo escucho, señor. ¿Qué necesita?',
-    curious: 'Mmm… ¿qué tenemos por aquí, señor?',
+    curious: 'A ver… ¿qué tenemos por aquí, señor?',
     wink: 'Todo listo, señor. Estoy a su servicio.',
     scan: 'Activando el escáner, señor. Permítame revisar con detalle.',
     scanTalk: 'Estoy revisando los detalles, señor. Le cuento lo que encuentro.',
@@ -80,7 +80,7 @@
     talk: 'Se lo explico con calma, señor.',
     work: 'Manos al teclado, señor. Estoy en ello.',
     workTalk: 'Sigo trabajando, señor. Le cuento cómo vamos.',
-    thinking: 'Mmm… déjeme pensar un momento.',
+    thinking: 'Déjeme pensar un momento…',
     encrypt: 'Estoy cifrando. Un momento…',
     decrypt: 'Estoy descifrando. Un momento…',
   };
@@ -143,7 +143,7 @@
   const ANIMO = { trabajaS: 50, duermeMin: 3 };             // a los 50 s se pone a trabajar; a los 3 minutos se duerme
   const FRASES_OCIO = ['Reviso que todo esté en orden…', 'Vigilando que no se cuele nada raro…', 'Afinando mis escáneres…', 'Revisando la seguridad en segundo plano…'];
   const FRASES_GESTO = {
-    curious: ['Mmm… ¿qué tenemos por aquí?', 'Mmm… algo llamó mi atención.', '¿Y eso? Déjeme echar un vistazo…', 'Mmm… ¿qué será eso de allá?', 'Interesante… muy interesante.'],
+    curious: ['A ver… ¿qué tenemos por aquí?', 'Oh, algo llamó mi atención.', '¿Y eso? Déjeme echar un vistazo…', '¿Qué será eso de allá?', 'Interesante… muy interesante.'],
     wink: ['Todo bajo control.', 'Aquí sigo, cuidando su equipo.', 'Tranquilo, yo vigilo.', 'Su equipo está en buenas manos.', 'Nada se me escapa.'],
   };
   const GESTOS = [['curious', 5], ['wink', 5], ['work', 2]];   // gestos al azar y su peso (kawaii solo con caricias o al volver)
@@ -238,8 +238,10 @@
       let local = null;
       if (!forzarAnalisis && RE_PRINCIPAL.test(normal(texto))) {
         abrirPrincipal();
-        local = azar(['Claro. Aquí tiene mi ventana principal.', 'Con gusto, le abro mi ventana principal.', 'Por supuesto, señor. Ya le muestro mi ventana principal.', 'De acuerdo, aquí estoy en grande.', 'Mmm, ¿quiere verme mejor? Aquí tiene mi ventana principal.', 'Enseguida. Le abro mi interfaz.']);
+        local = azar(['Claro. Aquí tiene mi ventana principal.', 'Con gusto, le abro mi ventana principal.', 'Por supuesto, señor. Ya le muestro mi ventana principal.', 'De acuerdo, aquí estoy en grande.', '¿Quiere verme mejor? Aquí tiene mi ventana principal.', 'Enseguida. Le abro mi interfaz.']);
       }
+      if (local === null && !forzarAnalisis) { try { local = await comandoPagina(texto); } catch (e) { console.warn('Página:', e); } }
+      if (local === null && !forzarAnalisis) { try { local = await comandoCorreo(texto); } catch (e) { console.warn('Correo:', e); } }
       try { if (local === null && window.LyFanBoveda && !forzarAnalisis) local = await window.LyFanBoveda.comando(texto); } catch (e) { console.warn('Bóveda:', e); }
       if (local !== null) {
         if (/^\s*\[ALERTA\]/.test(local)) { local = local.replace(/^\s*\[ALERTA\]\s*/, ''); nivel = 'alerta'; nivelBurbuja(nivel); }
@@ -538,6 +540,67 @@
   }
   setTimeout(() => { escaneoSilencioso(); setInterval(escaneoSilencioso, AV.cadaMin * 60000); }, AV.primeraS * 1000);
 
+  // ================================================================== ¿esta página es segura?
+  const RE_PAGINA = /\b(esta|esa|la|mi|aquella) (pagina|web|pagina web|sitio|sitio web|url|direccion)\b|\ben que (pagina|web|sitio) estoy\b|\b(pagina|web|sitio) (que|donde) (estoy|tengo abiert\w*|abri)\b|\b(navegador|pestana)\b/;
+  const RE_PAGINA_ACCION = /\b(segur\w*|confiable|fiable|phishing|falsa|falso|estafa|peligros\w*|legit\w*|real|oficial|revisa\w*|analiza\w*|escanea\w*|verifica\w*|chequea\w*|sospechos\w*|es buena|es mala|puedo entrar|en que pagina)\b/;
+  async function comandoPagina(texto) {
+    const n = normal(texto);
+    if (!RE_PAGINA.test(n) || !RE_PAGINA_ACCION.test(n) || /\b(que es|como funciona|como se hace|como creo)\b/.test(n)) return null;
+    poseTarea('scan');
+    let r;
+    try {
+      const resp = await fetch('/api/navegador/revisar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      r = await resp.json();
+      if (!resp.ok) return r.error || 'No pude revisar la página.';
+    } finally { poseTarea(null); }
+    emitir({ tipo: 'pagina', datos: r });
+    const sitio = r.dominio || r.url;
+    if (r.nivel === 'peligro') return `[ALERTA] ¡Cuidado! La página ${sitio} parece phishing. ${(r.razones || []).slice(0, 2).join('. ')}. ${r.accion}`;
+    if (r.nivel === 'alerta') return `[ALERTA] Tenga cuidado con ${sitio}. ${(r.razones || []).slice(0, 2).join('. ')}. ${r.accion}`;
+    const oficial = (r.razones || []).find(x => /dominio oficial|sitio oficial/i.test(x));
+    return `Revisé ${sitio}${r.titulo ? ' («' + r.titulo.slice(0, 50) + '»)' : ''} y no veo señales de phishing.${oficial ? ' ' + oficial.replace(/\.$/, '') + '.' : ''}${r.contenido_revisado ? '' : ' No pude descargar su contenido, solo revisé la dirección.'}`;
+  }
+
+  // ================================================================== correo (Gmail, solo lectura)
+  const RE_CORREO = /\b(correos?|gmail|bandeja|e ?mails?|mails?|inbox)\b/;
+  const RE_CORREO_ACCION = /\b(revisa\w*|analiza\w*|escanea\w*|chequea\w*|mira\w*|lee\w*|tengo|hay|llego|llegaron|sospechos\w*|nuevos?|ultimos?|estafa\w*|phishing|conecta\w*|vincula\w*|enlaza\w*)\b/;
+  const resumenCorreo = c => `«${c.asunto.slice(0, 60)}» de ${c.de}`;
+  async function comandoCorreo(texto) {
+    const n = normal(texto);
+    if (!RE_CORREO.test(n) || !RE_CORREO_ACCION.test(n) || /\b(que es|como funciona|como se)\b/.test(n)) return null;
+    const e = await (await fetch('/api/correo')).json();
+    if (!e.conectado || /\b(conecta\w*|vincula\w*|enlaza\w*)\b/.test(n)) {
+      abrirPrincipal('correo');
+      return e.conectado ? 'Su Gmail ya está conectado. Le abrí la sección Correo de mi ventana principal.'
+        : 'Todavía no tengo acceso a su Gmail. Le abrí la sección Correo de mi ventana principal: ahí lo conecta una sola vez con la página oficial de Google, con permiso de solo lectura.';
+    }
+    poseTarea('scan');
+    let r;
+    try {
+      const resp = await fetch('/api/correo/revisar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"cantidad":15}' });
+      r = await resp.json(); if (!resp.ok) throw new Error(r.error || 'No pude revisar su correo.');
+    } finally { poseTarea(null); }
+    emitir({ tipo: 'correos', datos: r });
+    const s = r.sospechosos || [];
+    if (!s.length) return `Revisé sus últimos ${r.revisados} correos y no veo señales de estafa. Su bandeja se ve segura.`;
+    const peor = s[0];
+    return `[ALERTA] Revisé sus últimos ${r.revisados} correos y ${s.length === 1 ? 'uno es sospechoso' : s.length + ' son sospechosos'}: ${s.slice(0, 2).map(resumenCorreo).join('; ')}. ${(peor.razones || [])[0] || ''}. No abra sus enlaces ni adjuntos.`;
+  }
+  const correoAuto = () => { try { return localStorage.getItem('lyfan-correo-auto') !== 'no'; } catch { return true; } };
+  async function correoSilencioso() {
+    if (!correoAuto() || ocupado || hablando() || oyendo()) return;
+    try {
+      const e = await (await fetch('/api/correo')).json(); if (!e.conectado) return;
+      const resp = await fetch('/api/correo/revisar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"cantidad":10,"solo_nuevos":true}' });
+      if (!resp.ok) return;
+      const r = await resp.json(); emitir({ tipo: 'correos', datos: r });
+      const nuevos = r.nuevos || []; if (!nuevos.length) return;
+      const nivel = nuevos.some(c => c.nivel === 'peligro') ? 'peligro' : 'alerta';
+      responder(`Atención, señor: le llegó ${nuevos.length === 1 ? 'un correo sospechoso' : nuevos.length + ' correos sospechosos'}. ${nuevos.slice(0, 2).map(resumenCorreo).join('; ')}. ${(nuevos[0].razones || [])[0] || ''}. No abra sus enlaces ni adjuntos.`, { tarea: 'scan', nivel });
+    } catch { /* sin internet o sin permiso: se intenta luego */ }
+  }
+  setTimeout(() => { correoSilencioso(); setInterval(correoSilencioso, 10 * 60000); }, 150 * 1000);
+
   // ================================================================== emoción de la voz
   // La voz juvenil (y Dave) cambia de tono y ritmo según lo que LyFan siente en ese momento.
   V.emocion = texto => {
@@ -555,7 +618,8 @@
   // ================================================================== ventana principal
   const normal = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
   const RE_PRINCIPAL = /\b(muestrate|mostrarte|te muestres|muestres tu\b(?! [a-z]+ (?:archivo|boveda|documento))|me muestres tu$|muestrame tu$|tu (?:interfaz|ventana|aplicacion|panel)|aparece|abrete|(abre|abri|muestra|ensena|ensename|muestrame|pon|ponme|quiero ver) (tu|la|su) (ventana|interfaz|pantalla|aplicacion|app|panel)( principal)?|(ventana|interfaz|pantalla|panel) principal)\b/;
-  function abrirPrincipal() {
+  function abrirPrincipal(vista) {
+    if (vista) { try { localStorage.setItem('lyfan-principal-vista', vista); } catch { /* nada */ } emitir({ tipo: 'ir', vista }); }
     if (escritorio && escritorio.abrirPrincipal) escritorio.abrirPrincipal();
     else window.open('/principal.html', 'lyfan-principal');
   }
