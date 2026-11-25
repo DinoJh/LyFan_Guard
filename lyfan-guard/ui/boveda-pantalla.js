@@ -93,7 +93,10 @@
       const st = document.createElement('span'); st.className = 'estado ' + (a.cifrado ? 'cif' : 'cla'); st.textContent = a.cifrado ? '🔒 CIFRADO' : '🔓 EN CLARO';
       const ac = document.createElement('div'); ac.className = 'acciones';
       if (a.cifrado) ac.append(boton('DESCIFRAR', 'cian', () => descifrar([a.nombre])));
-      else ac.append(boton('CIFRAR', 'cian', () => cifrar([a.nombre])), boton('ANALIZAR', 'ambar', () => analizar([a.nombre])), boton('VER', '', () => ver(a.nombre)));
+      else {
+        ac.append(boton('CIFRAR', 'cian', () => cifrar([a.nombre])), boton('ANALIZAR', 'ambar', () => analizar([a.nombre])), boton('VER', '', () => ver(a.nombre)));
+        if (marcados.has(a.nombre)) ac.append(boton('CUARENTENA', 'rojo', () => aislar(a.nombre)));   // solo si el análisis lo marcó
+      }
       li.append(ext, nom, st, ac);
       li.addEventListener('click', () => ver(a.nombre, true));
       if (animar.has(a.nombre)) { animar.delete(a.nombre); li.classList.add('nuevo'); scramble(b, sinLyfan(a.nombre)); }
@@ -241,14 +244,29 @@
     } finally { ocupado = false; avisarPose(null); }
   }
 
+  // ================================================================== cuarentena
+  const marcados = new Set();                                   // archivos que el análisis marcó como sospechosos
+  async function aislar(nombre) {
+    log('info', `> CUARENTENA ${nombre} …`, { cursor: true });
+    try {
+      const r = await fetch('/api/cuarentena/poner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || 'No pude aislarlo.');
+      marcados.delete(nombre); await refrescar();
+      log('ok', `✔ ${nombre} aislado en cuarentena: ya no puede abrirse ni ejecutarse.`);
+      avisarLyFan(`Listo, puse ${nombre} en cuarentena. Si fue una falsa alarma, dígame «saca ${nombre.replace(/\.[^.]+$/, '')} de cuarentena».`, 'scan', 'tranquilo');
+    } catch (e) { log('err', `✖ ${nombre}: ${e.message}`); }
+  }
+
   function mostrarAnalisis(r) {
-    log('info', `> ANÁLISIS DE ${r.nombre}`);
+    log('info', `> ANÁLISIS DE ${r.nombre}  ·  ${r.motor || 'LyFan Antivirus'}`);
     const g = r.riesgo || (r.estafa && r.estafa.nivel !== 'tranquilo' ? r.estafa : null);
     if (g) {
       const tipo = g.nivel === 'peligro' ? 'err' : g.nivel === 'alerta' ? 'aviso' : 'ok';
       log(tipo, `RIESGO ${barra(g.puntaje)} ${g.puntaje}/100 [${g.nivel.toUpperCase()}]`);
       for (const x of g.razones || []) log(tipo === 'ok' ? 'tenue' : tipo, `  ! ${x}`);
+      if (g.deteccion) log(tipo, `  ☣ DETECCIÓN: ${g.deteccion}`);
       if (g.accion) log('info', `  » ${g.accion}`);
+      if (g.nivel !== 'tranquilo') { marcados.add(r.nombre); pintarLista(); log('aviso', `  ⚑ Puede aislarlo con el botón CUARENTENA o diciendo «pon ${r.nombre} en cuarentena».`); }
     } else log('ok', 'RIESGO ' + barra(0) + ' 0/100 [TRANQUILO] — sin señales de problema');
     if (r.sensibles && r.sensibles.length) log('aviso', '  ⚑ Datos sensibles: ' + r.sensibles.join('; ') + '. Le recomiendo cifrarlo.');
     if (r.sha256) log('tenue', '  SHA-256 ' + r.sha256);
@@ -259,7 +277,8 @@
     const sens = r.sensibles && r.sensibles.length ? ' Contiene ' + r.sensibles.join(' y ') + '; le recomiendo cifrarlo.' : '';
     if (!g || g.nivel === 'tranquilo') return `Revisé ${r.nombre}, señor, y no veo señales de peligro.${sens}`;
     const nivel = g.nivel === 'peligro' ? 'es muy sospechoso, no lo ejecute' : 'tiene señales sospechosas, tenga cuidado';
-    return `Revisé ${r.nombre}: ${nivel}. ${(g.razones || []).slice(0, 2).join('. ')}.${sens}`;
+    const det = g.deteccion ? ` Lo detecté como ${g.deteccion.replace(' (heurístico)', '')}.` : '';
+    return `Revisé ${r.nombre}: ${nivel}.${det} ${(g.razones || []).slice(0, 2).join('. ')}.${sens} ¿Lo pongo en cuarentena?`;
   }
   function nivelAnalisis(r) {
     const g = r.riesgo || (r.estafa && r.estafa.nivel !== 'tranquilo' ? r.estafa : null);
@@ -289,6 +308,7 @@
       case 'crear': if (!est.creada) crearBoveda().then(ok => { if (ok && t.reintentar && canal) canal.postMessage({ tipo: 'reintentar', texto: t.reintentar }); }); break;
       case 'desbloquear': if (est.bloqueada) pedirDesbloqueo(); break;
       case 'cambiar': cambiarClave(); break;
+      case 'cuarentena': if (t.nombres && t.nombres[0]) aislar(t.nombres[0]); break;
       case 'cifrar': cifrar(t.nombres || []); break;
       case 'descifrar': descifrar(t.nombres || []); break;
       case 'analizar': analizar(t.nombres || []); break;

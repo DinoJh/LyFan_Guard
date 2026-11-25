@@ -269,3 +269,12 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => { if (salir) app.quit(); });
 app.on('before-quit', () => { salir = true; clearInterval(temporizadorCursor); globalShortcut.unregisterAll(); guardarPosicion(); });
 app.on('will-quit', detenerBackend);
+// Antes de cerrar, LyFan le pide a Ollama que suelte el modelo: así no queda ocupando la tarjeta gráfica.
+let modeloLiberado = false;
+app.on('before-quit', e => {
+  if (modeloLiberado) return;
+  e.preventDefault(); modeloLiberado = true;
+  const fin = () => app.quit();
+  const t = setTimeout(fin, 2500);
+  fetch(`${URL_BASE}/api/liberar`, { method: 'POST' }).catch(() => {}).finally(() => { clearTimeout(t); fin(); });
+});

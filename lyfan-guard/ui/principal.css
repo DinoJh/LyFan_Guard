@@ -144,6 +144,22 @@ h2 { font-size: 15px; }
 .enviar svg { width: 17px; height: 17px; }
 .enviar:disabled { opacity: .5; cursor: default; }
 
+/* ---------------------------------------------------------- protección */
+.escudo { display: flex; align-items: center; gap: 16px; padding: 18px 20px; border-radius: var(--radio); border: 1px solid #234239; background: linear-gradient(135deg, #10201c, var(--sup)); }
+.escudo-ico { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--menta-osc); color: var(--menta); flex: none; }
+.escudo-ico svg { width: 28px; height: 28px; }
+.escudo > div:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.escudo b { font-size: 16px; }
+.escudo span { color: var(--suave); font-size: 13px; }
+.escudo[data-e=alerta] { border-color: #8a6a3c; background: linear-gradient(135deg, #22190f, var(--sup)); }
+.escudo[data-e=alerta] .escudo-ico { background: #3a2a14; color: var(--ambar); }
+.escudo[data-e=escaneando] .escudo-ico { animation: latido 1s infinite; }
+.interruptor { display: flex; align-items: center; gap: 10px; color: var(--suave); cursor: pointer; }
+.interruptor input { width: 18px; height: 18px; accent-color: var(--menta); }
+.archivos .det { font-size: 11.5px; color: var(--ambar); }
+.archivos .peq { padding: 6px 11px; border-radius: 10px; font-size: 12px; }
+.archivos .rojo-t { color: var(--rojo); }
+
 /* ---------------------------------------------------------- secciones */
 .fila { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .boton { padding: 10px 16px; border-radius: 12px; border: 1px solid var(--linea2); background: var(--sup2); color: var(--texto); font-weight: 500; }

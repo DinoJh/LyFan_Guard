@@ -31,6 +31,11 @@ SISTEMA = (
     "La bóveda usa UNA sola contraseña maestra para todos los archivos: la misma sirve para cifrar y descifrar, y volver a cifrar un archivo no requiere otra contraseña. "
     "Nunca propongas crear contraseñas nuevas por archivo. Si quieren cambiarla, se dice «cambia la contraseña de la bóveda» y se hace en la pantalla de la bóveda. "
     "Si te preguntan si puedes cifrar o analizar archivos, responde que sí, explica en una frase cómo pedírtelo y ofrece hacerlo. "
+    "Tienes un antivirus heurístico local (LyFan Antivirus): revisas por dentro scripts (.bat, .ps1, .vbs, .js, .hta), programas (.exe, .dll, .scr), "
+    "documentos de Office con macros, PDF con código, comprimidos .zip, accesos directos .lnk y archivos de texto; detectas el archivo de prueba EICAR, "
+    "nombres con doble extensión y programas disfrazados. Escaneas la bóveda en segundo plano y avisas si algo requiere atención. "
+    "Puedes poner archivos en cuarentena («pon X en cuarentena»), sacarlos si fue falsa alarma («saca X de cuarentena») o eliminarlos. "
+    "Eres honesto: eres un revisor sencillo, no proteges en tiempo real (revisas la bóveda cada pocos minutos) y no reemplazas a un antivirus completo como Windows Defender. "
     "No menciones contraseñas ni datos bancarios a menos que el tema lo exija. "
     "No inventes datos ni enlaces. Si no sabes algo, dilo con respeto. "
     "Si le cuentan un problema de seguridad, dale pasos concretos y tranquilos. Nunca pidas contraseñas, códigos ni datos bancarios. "
@@ -40,7 +45,7 @@ SISTEMA = (
 
 # Cuánto tiempo Ollama mantiene el modelo en memoria después de usarlo (por defecto son solo 5 minutos,
 # y por eso la primera respuesta tras un rato tardaba: el modelo tenía que volver a cargarse).
-MANTENER = os.environ.get("LYFAN_MANTENER_MODELO", "3h")
+MANTENER = os.environ.get("LYFAN_MANTENER_MODELO", "1h")   # el reloj se reinicia con cada mensaje; al cerrar LyFan se libera
 
 
 async def precalentar(ollama_url: str, modelo: str) -> bool:
@@ -50,6 +55,16 @@ async def precalentar(ollama_url: str, modelo: str) -> bool:
             r = await cliente.post(f"{ollama_url}/api/generate", json={"model": modelo, "prompt": "", "keep_alive": MANTENER})
             return r.status_code == 200
     except Exception:  # noqa: BLE001 - si Ollama no está, LyFan sigue en modo básico
+        return False
+
+
+async def liberar(ollama_url: str, modelo: str) -> bool:
+    """Saca el modelo de la memoria de video (al cerrar LyFan), para que no quede ocupándola."""
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=2.0)) as cliente:
+            r = await cliente.post(f"{ollama_url}/api/generate", json={"model": modelo, "keep_alive": 0})
+            return r.status_code == 200
+    except Exception:  # noqa: BLE001
         return False
 
 

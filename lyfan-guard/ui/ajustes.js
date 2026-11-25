@@ -130,12 +130,14 @@
     }
     resumenes();
   }
-  function dave() { return ((configVoz && configVoz.voces_piper) || []).find(p => p.id === V.DAVE); }
+  const idPiper = () => V.DAVE;                     // las dos voces sin internet usan el modelo de Dave
+  function dave() { return ((configVoz && configVoz.voces_piper) || []).find(p => p.id === idPiper()); }
   function estadoDave() {                                       // ¿está descargada la voz que funciona sin internet?
     const est = $('aj-piper-estado'), d = dave(); est.textContent = ''; est.className = 'aj-nota';
     if (!d) return;
-    if (d.instalada) { est.textContent = 'Dave está listo: funciona sin internet.'; est.className = 'aj-nota estado-ok'; return; }
-    est.textContent = `Dave todavía no está descargada (${d.mb} MB, una sola vez). `;
+    if (V.prefs.motor === 'elevenlabs') return;
+    if (d.instalada) { est.textContent = `${V.prefs.motor === 'juvenil' ? 'LyFan juvenil está lista: un robot joven que cambia su voz según cómo se siente' : 'Dave está listo'} y funciona sin internet.`; est.className = 'aj-nota estado-ok'; return; }
+    est.textContent = `${d.nombre} todavía no está descargada (${d.mb} MB, una sola vez). `;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'mini principal'; b.textContent = 'Descargar';
     b.addEventListener('click', () => descargarDave());
     est.append(b);
@@ -144,18 +146,18 @@
     const est = $('aj-piper-estado'), d = dave(); if (!d) return true;
     est.textContent = `Descargando la voz (${d.mb} MB)… solo se hace una vez.`; est.className = 'aj-nota';
     try {
-      const r = await fetch('/api/voz/piper/descargar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: V.DAVE }) });
+      const r = await fetch('/api/voz/piper/descargar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: idPiper() }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'No pude descargar la voz.');
       configVoz.voces_piper = j.voces_piper; estadoDave(); return true;
     } catch (e) { est.textContent = e.message; est.className = 'aj-nota estado-mal'; return false; }
   }
   async function probarVoz(texto) {
-    if (V.prefs.motor === 'dave' && dave() && !dave().instalada && !(await descargarDave())) return;
+    if (V.PIPER_DE && V.PIPER_DE[V.prefs.motor] && dave() && !dave().instalada && !(await descargarDave())) return;
     V.probar(texto);
   }
 
-  selMotor.addEventListener('change', () => { V.guardarPrefs({ motor: selMotor.value }); pintarVoces(); probarVoz(); });
+  selMotor.addEventListener('change', () => { V.guardarPrefs({ motor: selMotor.value }); pintarVoces(); estadoDave(); probarVoz(); });
   $('aj-activa').addEventListener('change', e => { V.guardarPrefs({ activa: e.target.checked }); if (!e.target.checked) V.detener(); pintarVoces(); });
   rVol.addEventListener('input', () => { V.guardarPrefs({ volumen: rVol.value / 100 }); $('aj-vol-v').textContent = rVol.value + ' %'; });
   rVol.addEventListener('change', () => probarVoz());

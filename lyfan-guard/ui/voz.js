@@ -6,8 +6,10 @@
   // ------------------------------------------------------------------ preferencias
   const CLAVE = 'lyfan-voz';
   const DAVE = 'es_ES-davefx-medium';            // la voz que se queda: funciona sin internet (Piper)
-  const MOTORES = { dave: 'Dave · España (sin internet)', elevenlabs: 'ElevenLabs (su voz)' };
-  const EFECTO_INICIAL = { dave: 40, elevenlabs: 0 };   // efecto robot sugerido para cada voz
+  const JUVENIL = 'lyfan-juvenil';               // LyFan juvenil: la voz de Dave más aguda (un robot joven), con emociones
+  const MOTORES = { juvenil: 'LyFan juvenil · robot joven (sin internet)', dave: 'Dave · España (sin internet)', elevenlabs: 'ElevenLabs (su voz)' };
+  const PIPER_DE = { dave: DAVE, juvenil: JUVENIL };
+  const EFECTO_INICIAL = { dave: 40, juvenil: 22, elevenlabs: 0 };   // efecto robot sugerido para cada voz
   const POR_DEFECTO = {
     activa: true, motor: 'dave', volumen: 0.9, velocidad: 0, efectos: {},
     modoMic: 'manual',                           // 'manual' | 'nombre' (siempre encendido, solo si empiezo con «LyFan») | 'siempre'
@@ -29,7 +31,7 @@
   function definicion(motor) {
     if (motor === 'elevenlabs') return { prov: 'elevenlabs', voz: DAVE, tono: 0, vel: 0 };
     if (motor === 'sistema') return { prov: 'sistema' };
-    return { prov: 'piper', voz: DAVE, tono: 0, vel: prefs.velocidad || 0 };
+    return { prov: 'piper', voz: PIPER_DE[motor] || DAVE, tono: 0, vel: prefs.velocidad || 0 };
   }
 
   // ------------------------------------------------------------------ audio
@@ -68,13 +70,20 @@
   let generacion = 0, cola = [], reproduciendo = false, hablado = 0, fuenteActual = null, esperando = [];
   const eventos = { inicio: () => {}, fin: () => {}, aviso: () => {} };
 
+  // La interfaz (overlay.js) dice cómo se siente LyFan; la voz lo refleja (alegre, curioso, alerta, calma o neutro)
+  const EMOCIONES = ['neutro', 'alegre', 'curioso', 'alerta', 'calma'];
+  function emocionDe(texto) {
+    try { const e = window.LyFanVoz && window.LyFanVoz.emocion && window.LyFanVoz.emocion(texto); return EMOCIONES.includes(e) ? e : 'neutro'; }
+    catch { return 'neutro'; }
+  }
+
   async function pedirAudio(texto) {
     const motor = prefs.motor, d = definicion(motor);
     if (d.prov === 'sistema') return { sistema: true, texto };
     try {
       const r = await fetch('/api/voz/hablar', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto, proveedor: d.prov, voz: d.voz, tono: d.tono, velocidad: d.vel }),
+        body: JSON.stringify({ texto, proveedor: d.prov, voz: d.voz, tono: d.tono, velocidad: d.vel, emocion: emocionDe(texto) }),
       });
       if (!r.ok) {
         let msg = 'La voz en línea no respondió; usé la voz de Windows.';
@@ -357,7 +366,7 @@
     get prefs() { return prefs; },
     guardarPrefs: nuevo => { prefs = { ...prefs, ...nuevo }; guardar(); },
     setEfecto: (motor, valor) => { prefs.efectos = { ...(prefs.efectos || {}), [motor]: valor }; guardar(); },
-    efectoDe, MOTORES, DAVE,
+    efectoDe, MOTORES, DAVE, JUVENIL, PIPER_DE, emocion: null,
     detener, agregarTexto, terminarRespuesta, cuandoCalle, estaHablando, probar,
     escuchar, escuchando, cancelarEscucha,
     manos: { iniciar: iniciarManos, detener: detenerManos, pausar: pausarManos,

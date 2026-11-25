@@ -78,10 +78,75 @@
   const RE_PRONOMBRE = /\b(\w+(?:lo|la|los|las)|otra vez|de nuevo|nuevamente|ese|esa|este|esta|eso|esto)\b/;
   const RE_CAMBIAR_CLAVE = /\b(cambia\w*|cambio|cambiar|nueva|otra|modifica\w*|renueva\w*)\b.*\b(contrasena|clave)\b|\b(contrasena|clave)\b.*\b(cambia\w*|cambiar|nueva)\b/;
 
+  // ---------------------------------------------------------------- antivirus y cuarentena
+  const RE_CUARENTENA = /\b(cuarentena|aisla\w*|aislar)\b/;
+  const RE_SACAR = /\b(saca\w*|quita\w*|restaura\w*|devuelve\w*|devuelvel\w*|recupera\w*|libera\w*)\b|\bfalsa alarma\b/;
+  const RE_BORRAR_Q = /\b(elimina\w*|borra\w*|destruye\w*)\b/;
+  const RE_VER_Q = /\b(que hay|que tienes|que tenemos|muestra\w*|lista\w*|cuales|ver)\b/;
+  const RE_ESCANEO = /\b(escanea\w*|escaneo|analiza\w*|revisa\w*|busca\w*)\b.*\b(carpeta|boveda|todo|todos|archivos|virus|amenazas|malware)\b|\b(antivirus|escaneo completo|busca virus)\b/;
+  const RE_CAPAZ_AV = /\b(que (archivos|tipos)|que puedes (revisar|analizar)|que revisas|que analizas)\b/;
+  async function postJ(ruta, cuerpo) {
+    const r = await fetch(ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo || {}) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'No pude completar la acción.'); return j;
+  }
+  function elegirEn(lista, texto) {                       // busca en la cuarentena por nombre
+    const u = ' ' + norm(texto) + ' ';
+    const p = lista.map(e => ({ e, p: norm(e.nombre.replace(/\.[^.]+$/, '')).split(' ').filter(t => t.length >= 3 && !STOP.has(t)).filter(t => u.includes(' ' + t)).length })).filter(x => x.p > 0).sort((a, b) => b.p - a.p);
+    return p.length ? p[0].e : null;
+  }
+  const resumenHallazgo = h => `${h.nombre}${h.deteccion ? ' (' + h.deteccion.replace(' (heurístico)', '') + ')' : ''}`;
+
+  async function comandoAntivirus(texto, n) {
+    if (RE_CAPAZ_AV.test(n) && !RE_CUARENTENA.test(n)) return null;      // lo explica el modelo
+    if (RE_CUARENTENA.test(n)) {
+      const lista = (await (await fetch('/api/cuarentena')).json()).elementos || [];
+      if (RE_SACAR.test(n)) {
+        const e = elegirEn(lista, texto) || (lista.length === 1 ? lista[0] : null);
+        if (!lista.length) return 'No hay nada en cuarentena, señor.';
+        if (!e) return `¿Cuál saco de cuarentena? Tengo: ${lista.slice(0, 5).map(x => x.nombre).join(', ')}.`;
+        const r = await postJ('/api/cuarentena/restaurar', { id: e.id });
+        return `Listo, devolví ${r.restaurado} a su carpeta y lo marqué como falsa alarma: no lo volveré a señalar.`;
+      }
+      if (RE_BORRAR_Q.test(n)) {
+        if (!lista.length) return 'La cuarentena está vacía, señor.';
+        const e = elegirEn(lista, texto);
+        const cuales = e ? [e] : RE_TODO.test(n) ? lista : (lista.length === 1 ? lista : null);
+        if (!cuales) return `¿Cuál elimino? Tengo: ${lista.slice(0, 5).map(x => x.nombre).join(', ')}. También puede decir «elimina todo de la cuarentena».`;
+        for (const x of cuales) await postJ('/api/cuarentena/eliminar', { id: x.id });
+        return cuales.length === 1 ? `Eliminé ${cuales[0].nombre} para siempre.` : `Eliminé ${cuales.length} archivos de la cuarentena para siempre.`;
+      }
+      if (RE_VER_Q.test(n) && !/\b(pon\w*|mete\w*|manda\w*|mueve\w*)\b/.test(n)) {
+        if (!lista.length) return 'La cuarentena está vacía, señor. Todo en orden.';
+        return `En cuarentena tengo ${lista.length === 1 ? '1 archivo' : lista.length + ' archivos'}: ${lista.slice(0, 5).map(resumenHallazgo).join(', ')}. Puede decirme «sácalo de cuarentena» si fue falsa alarma.`;
+      }
+      // poner en cuarentena
+      let est; try { est = await api(''); } catch { return null; }
+      const sin = (est.archivos || []).filter(a => !a.cifrado);
+      let objetivo = elegir(texto, sin);
+      if (!objetivo.length && ultimos.length) objetivo = sin.filter(a => ultimos.includes(base(a.nombre)));
+      if (!objetivo.length) return sin.length ? `¿Qué archivo pongo en cuarentena? Tiene: ${lista && sin.slice(0, 5).map(a => a.nombre).join(', ')}.` : 'No hay archivos sin cifrar para aislar, señor.';
+      if (objetivo.length > 1 && !RE_TODO.test(n)) return `Hay varios que coinciden: ${objetivo.slice(0, 5).map(a => a.nombre).join(', ')}. ¿Cuál de ellos?`;
+      const hechos = [];
+      for (const a of objetivo) { try { await postJ('/api/cuarentena/poner', { nombre: a.nombre }); hechos.push(a.nombre); } catch { /* sigue */ } }
+      if (!hechos.length) return 'No pude ponerlo en cuarentena, señor.';
+      return `Listo, aislé ${hechos.join(', ')} en cuarentena: ya no puede abrirse ni ejecutarse. Si fue una falsa alarma, dígame «sácalo de cuarentena».`;
+    }
+    if (RE_ESCANEO.test(n) && !elegir(texto, ((await api('').catch(() => ({}))).archivos || [])).length) {
+      if (App.poseTarea) App.poseTarea('scan');
+      const r = await postJ('/api/antivirus/escanear', { solo_nuevos: false });
+      if (App.poseTarea) App.poseTarea(null);
+      if (!r.hallazgos.length) return `Escaneo completo: revisé ${r.total} ${r.total === 1 ? 'archivo' : 'archivos'} de su bóveda y no encontré amenazas.`;
+      ultimos = r.hallazgos.map(h => base(h.nombre));
+      return `[ALERTA] Escaneo completo: encontré ${r.hallazgos.length === 1 ? 'algo que requiere atención' : r.hallazgos.length + ' archivos que requieren atención'}: ${r.hallazgos.slice(0, 3).map(resumenHallazgo).join(', ')}. ¿Los pongo en cuarentena?`;
+    }
+    return null;
+  }
+
   /** Devuelve lo que LyFan responde (y abre la pantalla si hace falta), o null si no era un pedido sobre la bóveda. */
   async function comando(texto) {
     const n = norm(texto);
     if (!n || n.length > 240) return null;
+    try { const av = await comandoAntivirus(texto, n); if (av !== null) return av; } catch (e) { return 'No pude completar eso: ' + e.message; }
     if (/\bcontrasena\b.*\b(es|son)\b\s+\S+/.test(n) && /\b(boveda|maestra|clave)\b/.test(n))
       return 'Señor, no me diga su contraseña ni por voz ni por escrito. Escríbala solo en la ventana de la bóveda.';
     if (RE_CAMBIAR_CLAVE.test(n) && /\b(boveda|maestra|cambia\w*|cambiar)\b/.test(n) && !RE_PREGUNTA.test(n)) {
@@ -171,5 +236,7 @@
     return `Con gusto. Reviso ${que} en su equipo y le cuento qué encuentro.`;
   }
 
-  window.LyFanBoveda = { comando, abrirPantalla };
+  // El escaneo automático le cuenta a la bóveda qué encontró, para entender «ponlo en cuarentena»
+  function recordar(nombres) { ultimos = (nombres || []).map(base); }
+  window.LyFanBoveda = { comando, abrirPantalla, recordar };
 })();

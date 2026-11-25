@@ -86,10 +86,19 @@ def sha256(ruta: Path) -> str:
 
 
 def analizar_archivo(ruta: Path) -> dict:
-    """Revisión según el tipo de archivo. No ejecuta nada."""
+    """Revisión según el tipo de archivo (LyFan Antivirus, heurístico). No ejecuta nada."""
+    from . import antivirus  # noqa: PLC0415
     ext = ruta.suffix.lower()
-    base = {"nombre": ruta.name, "bytes": ruta.stat().st_size}
+    base = {"nombre": ruta.name, "bytes": ruta.stat().st_size, "motor": antivirus.MOTOR}
     engano = bool(_DOBLE_EXT.search(ruta.name))
+    with open(ruta, "rb") as f:
+        datos = f.read(antivirus.MAX_BINARIO)
+    huella = sha256(ruta)
+    firma = antivirus.buscar_firmas(datos, huella)
+    if firma:                                             # coincide con una firma conocida (por ejemplo, EICAR)
+        r = antivirus._resultado(100, [f"Coincide con la firma {firma}: el archivo de prueba estándar que todo antivirus debe detectar"
+                                       if firma.startswith("EICAR") else f"Coincide con la firma conocida {firma}"], firma=firma)
+        return {**base, "revisable": ext in EXT_SCRIPT or ext in EXT_TEXTO, "tipo": "firma", "sha256": huella, "riesgo": r}
     if ext in EXT_SCRIPT or ext in EXT_TEXTO:
         texto = ruta.read_text(encoding="utf-8", errors="replace")[:MAX_ANALIZAR]
         salida = {**base, "revisable": True, "tipo": "script" if ext in EXT_SCRIPT else "texto"}
@@ -98,22 +107,17 @@ def analizar_archivo(ruta: Path) -> dict:
             if engano:
                 r["puntaje"] = min(100, r["puntaje"] + 40); r["razones"].insert(0, "Su nombre tiene doble extensión para engañar")
             r["nivel"] = detector.nivel_de(r["puntaje"]); r["accion"] = _accion(r["nivel"])
+            r["deteccion"] = (antivirus.familia_de(r["razones"], r["nivel"]) + " (heurístico)") if r["nivel"] != "tranquilo" else None
+            r["motor"] = antivirus.MOTOR
             salida["riesgo"] = r
+            salida["sha256"] = huella
             salida["sensibles"] = _sensibles(texto)
         else:
             salida["sensibles"] = _sensibles(texto)
             salida["estafa"] = detector.analizar(texto[:6000]).a_dict() if texto.strip() else None
         return salida
-    salida = {**base, "revisable": False, "tipo": "binario", "sha256": sha256(ruta)}
-    razones = []
-    if engano:
-        razones.append("Su nombre tiene doble extensión para engañar")
-    if ext in EXT_EJECUTABLE:
-        razones.append("Es un programa o acceso directo: no puedo ver su interior, solo ejecutarlo lo diría")
-    puntos = (60 if engano else 0) + (10 if ext in EXT_EJECUTABLE else 0)
-    nivel = detector.nivel_de(puntos)
-    salida["riesgo"] = {"puntaje": puntos, "nivel": nivel, "razones": razones, "accion": _accion(nivel)}
-    salida["mensaje"] = "Por ahora reviso a fondo archivos de texto y scripts. De este solo calculé su huella (SHA-256) y revisé su nombre."
+    salida = {**base, "revisable": False, "tipo": "binario", "sha256": huella}
+    salida["riesgo"] = antivirus.analizar_binario(ruta, datos, engano)
     return salida
 
 

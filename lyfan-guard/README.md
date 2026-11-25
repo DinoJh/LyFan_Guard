@@ -64,6 +64,12 @@ Además: **volumen**, **velocidad** (en Dave), **efecto robot** (de 0 a 100) y *
 ## Ventana principal
 Además de la mascota flotante, LyFan tiene su propia ventana (`ui/principal.html`): conversación, **Analizar** (mensajes y enlaces con semáforo y puntaje), **Bóveda** (estado, archivos y cambio de contraseña) y **Actividad** de la sesión. Se abre diciéndole «muéstrate» o «abre tu ventana principal», con el botón ▦ de la barra, o desde el menú de clic derecho y la bandeja. Mientras está abierta, la mascota flotante se oculta y LyFan «se muda» a la ventana grande; su voz y su micrófono siguen funcionando. Al cerrarla, vuelve a aparecer.
 
+## LyFan Antivirus (heurístico, local)
+Revisa por dentro, sin ejecutarlos, los archivos de la bóveda: scripts (.bat, .ps1, .vbs, .js, .hta), programas (.exe, .dll, .scr: funciones de inyección, keylogger, descargas, arranque automático, mensajes de ransomware, empaquetado y entropía), Office con macros, PDF con JavaScript o que lanzan programas, comprimidos .zip, accesos directos .lnk y texto. Reconoce por firma el archivo de prueba **EICAR** y da un nombre de detección (por ejemplo `Trojan.Downloader (heurístico)`).
+- **Escaneo en segundo plano** cada 6 minutos (solo lo nuevo o lo que cambió): si encuentra algo, LyFan se pone en alerta y avisa. Se desactiva en la ventana principal → Protección.
+- **Cuarentena** (`~/.lyfan-guard/cuarentena`): el archivo se aísla neutralizado. «Pon X en cuarentena», «qué hay en cuarentena», «saca X de cuarentena» (falsa alarma: no se vuelve a marcar) o «elimina X de la cuarentena». También desde la pantalla de la bóveda (botón CUARENTENA tras analizar) y la ventana principal.
+- Es un revisor sencillo, no protección en tiempo real: conviene mantener Windows Defender activo.
+
 ## Bóveda (archivos cifrados)
 La carpeta `Documentos\LyFan Bóveda` (cambiable con `LYFAN_BOVEDA`) es el lugar de trabajo: LyFan encuentra ahí los archivos por su nombre, así que no hay que decirle rutas. Se abre en una **pantalla completa estilo consola** (engranaje → *Bóveda*, o a pedido de LyFan).
 

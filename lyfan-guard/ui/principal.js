@@ -21,6 +21,7 @@
     document.querySelectorAll('.item').forEach(b => b.classList.toggle('activo', b.dataset.v === v));
     document.querySelectorAll('.vista').forEach(s => s.classList.toggle('activa', s.id === 'v-' + v));
     if (v === 'boveda') cargarBoveda();
+    if (v === 'proteccion') cargarProteccion(false);
     if (v === 'actividad') pintarActividad();
     if (v === 'inicio') setTimeout(() => $('entrada').focus(), 50);
   }
@@ -157,6 +158,64 @@
     cb.onmessage = ev => { const d = ev.data || {}; if (d.tipo === 'resultado' || d.tipo === 'cerrada') setTimeout(cargarBoveda, 300); };
   }
 
+  // ---------------------------------------------------------------- protección (antivirus y cuarentena)
+  const postJ = async (ruta, cuerpo) => {
+    const r = await fetch(ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo || {}) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'No pude completar la acción.'); return j;
+  };
+  try { $('p-auto').checked = localStorage.getItem('lyfan-antivirus-auto') !== 'no'; } catch { /* sin preferencias */ }
+  $('p-auto').addEventListener('change', e => { try { localStorage.setItem('lyfan-antivirus-auto', e.target.checked ? 'si' : 'no'); } catch { /* no es grave */ } });
+  function botonP(texto, clase, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'boton peq ' + clase; b.textContent = texto; b.addEventListener('click', fn); return b; }
+  function filaVacia(ul, t) { const li = document.createElement('li'); li.className = 'vacio-l'; li.textContent = t; ul.append(li); }
+  function pintarEscaneo(r) {
+    const hs = r.hallazgos || [], esc = $('p-escudo');
+    esc.dataset.e = hs.length ? 'alerta' : '';
+    $('p-titulo').textContent = hs.length ? (hs.length === 1 ? '1 archivo requiere atención' : hs.length + ' archivos requieren atención') : 'Su bóveda está protegida';
+    $('p-detalle').textContent = `Último escaneo: ${hora()} · ${r.total} ${r.total === 1 ? 'archivo revisado' : 'archivos revisados'} · ${r.motor || 'LyFan Antivirus'}`;
+    $('p-estado').textContent = hs.length ? '⚠ Atención' : '✓ Protegido'; $('p-estado').dataset.e = hs.length ? 'bloqueada' : 'abierta';
+    const ul = $('p-hallazgos'); ul.textContent = '';
+    if (!hs.length) { filaVacia(ul, 'Sin amenazas. Todo en orden.'); return; }
+    for (const h of hs) {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="ext"></span><span class="n"></span><span class="det"></span>';
+      li.children[0].textContent = h.nivel === 'peligro' ? 'PELIGRO' : 'ALERTA'; li.children[0].classList.toggle('rojo-t', h.nivel === 'peligro');
+      li.children[1].textContent = h.nombre; li.children[1].title = (h.razones || []).join(' · ');
+      li.children[2].textContent = h.deteccion || '';
+      li.append(botonP('Poner en cuarentena', '', async () => {
+        try { await postJ('/api/cuarentena/poner', { nombre: h.nombre }); burbuja(`Listo, aislé ${h.nombre} en cuarentena.`); } catch (e) { burbuja(e.message); }
+        cargarProteccion(true);
+      }));
+      ul.append(li);
+    }
+  }
+  async function pintarCuarentena() {
+    const ul = $('p-cuarentena'); ul.textContent = '';
+    let lista = [];
+    try { lista = (await (await fetch('/api/cuarentena')).json()).elementos || []; } catch { /* sin conexión */ }
+    if (!lista.length) { filaVacia(ul, 'La cuarentena está vacía.'); return; }
+    for (const q of lista) {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="ext">AISLADO</span><span class="n"></span><span class="det"></span>';
+      li.children[1].textContent = q.nombre; li.children[1].title = (q.razones || []).join(' · ');
+      li.children[2].textContent = q.deteccion || new Date(q.fecha * 1000).toLocaleDateString('es');
+      li.append(
+        botonP('Restaurar', '', async () => { try { const r = await postJ('/api/cuarentena/restaurar', { id: q.id }); burbuja(`Devolví ${r.restaurado} a su carpeta.`); } catch (e) { burbuja(e.message); } cargarProteccion(true); }),
+        botonP('Eliminar', '', async () => { if (!confirm(`¿Eliminar ${q.nombre} para siempre? No se puede deshacer.`)) return; try { await postJ('/api/cuarentena/eliminar', { id: q.id }); } catch (e) { burbuja(e.message); } cargarProteccion(true); }),
+      );
+      ul.append(li);
+    }
+  }
+  async function cargarProteccion(escanearYa) {
+    if (escanearYa) { try { pintarEscaneo(await postJ('/api/antivirus/escanear', { solo_nuevos: false })); } catch { /* sin conexión */ } }
+    else if (!$('p-hallazgos').childElementCount) { try { pintarEscaneo(await postJ('/api/antivirus/escanear', { solo_nuevos: false })); } catch { /* sin conexión */ } }
+    pintarCuarentena();
+  }
+  $('p-escanear').addEventListener('click', () => {           // LyFan hace el escaneo y lo cuenta en voz alta
+    $('p-escudo').dataset.e = 'escaneando'; $('p-titulo').textContent = 'Escaneando su bóveda…';
+    if (conectado) enviarALyFan({ tipo: 'enviar', texto: 'Escanea la bóveda en busca de virus' });
+    setTimeout(() => cargarProteccion(true), conectado ? 2500 : 0);
+  });
+
   // ---------------------------------------------------------------- actividad
   function pintarActividad() {
     $('s-mensajes').textContent = historial.filter(m => m.rol === 'usuario').length;
@@ -203,6 +262,7 @@
         break;
       case 'analisis': mostrarAnalisis(d.datos); break;
       case 'mic': pintarMic(d.estado); break;
+      case 'escaneo': if (d.datos) pintarEscaneo(d.datos); break;
       case 'voz': $('bt-voz').setAttribute('aria-pressed', String(!!d.activa)); break;
       default: break;
     }

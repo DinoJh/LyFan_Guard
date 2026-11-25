@@ -180,8 +180,30 @@ def test_elevenlabs_que_falla_cae_primero_a_dave_si_esta_descargada(monkeypatch)
     assert audio == b"WAV-DAVE" and usado == "piper" and mime == "audio/wav" and "sin internet" in aviso
 
 
-def test_el_catalogo_solo_tiene_a_dave():
+def test_el_catalogo_tiene_a_dave_y_la_juvenil_sale_de_dave():
     assert [v["id"] for v in voz.VOCES_PIPER] == ["es_ES-davefx-medium"]
+    assert voz.VOCES_VIRTUALES["lyfan-juvenil"]["base"] == "es_ES-davefx-medium"
+
+
+def test_emociones_cambian_tono_y_ritmo():
+    neutro = voz._parametros_voz("Hola.", "lyfan-juvenil", 0, "neutro")
+    alegre = voz._parametros_voz("Hola.", "lyfan-juvenil", 0, "alegre")
+    alerta = voz._parametros_voz("Hola.", "lyfan-juvenil", 0, "alerta")
+    dave = voz._parametros_voz("Hola.", "es_ES-davefx-medium", 0, "neutro")
+    assert alegre[0] > neutro[0] > alerta[0]           # más agudo cuando está alegre, más grave en alerta
+    assert neutro[0] > dave[0]                         # la juvenil es más aguda que Dave
+    assert alegre[2] > alerta[2]                       # más viva al estar alegre
+
+
+def test_subir_tono_mantiene_wav_valido():
+    import io
+    import wave
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(22050); w.writeframes(b"\x00\x10" * 22050)
+    out = voz._subir_tono(buf.getvalue(), 1.1)
+    with wave.open(io.BytesIO(out)) as r:
+        assert r.getframerate() == 24000 and abs(r.getnframes() / 24000 - 1 / 1.1) < 0.01
 
 
 def test_segmentos_dudosos_se_descartan_y_los_claros_se_conservan():

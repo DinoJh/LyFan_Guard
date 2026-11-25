@@ -51,6 +51,22 @@ VOCES_PIPER = [
     {"id": "es_ES-davefx-medium", "nombre": "Dave · España", "genero": "hombre", "mb": 63,
      "ruta": "es/es_ES/davefx/medium/es_ES-davefx-medium"},
 ]
+# Voces que se arman a partir de otra: «LyFan juvenil» es Dave con el tono más alto (un robot joven).
+# Usa el mismo modelo de Dave, así que no descarga nada más y suena igual de fluida.
+VOCES_VIRTUALES = {"lyfan-juvenil": {"base": "es_ES-davefx-medium", "tono": 1.14}}
+# Tono propio de cada voz (1.0 = natural)
+TONO_BASE = {"es_ES-davefx-medium": 1.0, **{k: v["tono"] for k, v in VOCES_VIRTUALES.items()}}
+# Emociones: LyFan cambia su forma de hablar según lo que siente (tono, ritmo y viveza de la voz).
+#   tono >1 = más agudo · ritmo <1 = más rápido · viveza = variación natural (noise_scale) · fluidez = variación del ritmo (noise_w)
+# OJO: «fluidez» (noise_w) debe quedarse cerca del valor del modelo (0.333). Si se sube, cada sílaba dura distinto
+# y la voz suena entrecortada, como si le costara hablar.
+EMOCIONES = {
+    "neutro":  {"tono": 1.00, "ritmo": 1.00, "viveza": 0.55, "fluidez": 0.33},
+    "alegre":  {"tono": 1.05, "ritmo": 0.95, "viveza": 0.62, "fluidez": 0.36},
+    "curioso": {"tono": 1.03, "ritmo": 0.99, "viveza": 0.58, "fluidez": 0.34},
+    "alerta":  {"tono": 0.97, "ritmo": 1.05, "viveza": 0.45, "fluidez": 0.28},
+    "calma":   {"tono": 0.99, "ritmo": 1.03, "viveza": 0.50, "fluidez": 0.30},
+}
 _PIPER_POR_ID = {v["id"]: v for v in VOCES_PIPER}
 VOZ_PIPER_DEFECTO = "es_ES-davefx-medium"
 MIME_MP3, MIME_WAV = "audio/mpeg", "audio/wav"
@@ -252,33 +268,69 @@ async def descargar_piper(voz_id: str) -> list[dict]:
     return estado_piper()
 
 
-def _sintetizar_piper_sync(texto: str, voz_id: str, velocidad_pct: int) -> bytes:
+def _subir_tono(wav: bytes, factor: float) -> bytes:
+    """Sube (o baja) el tono sin cambiar el ritmo: el audio se generó más lento en la misma proporción,
+    así que al acelerarlo con un re-muestreo queda a velocidad normal pero más agudo. Sale a 24 kHz."""
+    import io  # noqa: PLC0415
+    import wave  # noqa: PLC0415
+    import numpy as np  # noqa: PLC0415
+
+    if abs(factor - 1.0) < 0.005:
+        return wav
+    with wave.open(io.BytesIO(wav)) as r:
+        sr, x = r.getframerate(), np.frombuffer(r.readframes(r.getnframes()), dtype=np.int16).astype(np.float32)
+    n = max(1, int(len(x) * 24000 / (sr * factor)))
+    y = np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x)
+    out = io.BytesIO()
+    with wave.open(out, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
+        w.writeframes(np.clip(y, -32768, 32767).astype(np.int16).tobytes())
+    return out.getvalue()
+
+
+def _parametros_voz(texto: str, voz_id: str, velocidad_pct: int, emocion: str) -> tuple[float, float, float, float]:
+    """(tono, length_scale, noise_scale, noise_w) para una frase."""
+    e = EMOCIONES.get(emocion, EMOCIONES["neutro"])
+    vel = max(-50, min(50, int(velocidad_pct)))
+    tono = TONO_BASE.get(voz_id, 1.0) * e["tono"]
+    if texto.rstrip().endswith("?"):
+        tono *= 1.02                                       # las preguntas suben un poquito
+    # pequeña variación natural por frase (siempre igual para la misma frase, así se aprovecha la caché)
+    tono *= 1.0 + 0.012 * ((int(hashlib.sha1(texto.encode()).hexdigest()[:4], 16) / 65535.0) * 2 - 1)
+    ritmo = e["ritmo"] / (1.0 + vel / 100.0)
+    return tono, ritmo * tono, e["viveza"], e["fluidez"]
+
+
+def _sintetizar_piper_sync(texto: str, voz_id: str, velocidad_pct: int, emocion: str = "neutro") -> bytes:
     import io  # noqa: PLC0415
     import wave  # noqa: PLC0415
     from piper import PiperVoice, SynthesisConfig  # noqa: PLC0415
 
+    tono, largo, ruido, ruido_w = _parametros_voz(texto, voz_id, velocidad_pct, emocion)
+    voz_id = VOCES_VIRTUALES.get(voz_id, {}).get("base", voz_id)      # la juvenil usa el modelo de Dave
     with _bloqueo_piper:
         voz = _voces_piper.get(voz_id)
         if voz is None:
             voz = PiperVoice.load(str(_archivos_piper(voz_id)[0]))
             _voces_piper[voz_id] = voz
-        vel = max(-50, min(50, int(velocidad_pct)))
-        cfg = SynthesisConfig(length_scale=1.0 / (1.0 + vel / 100.0))
+        cfg = SynthesisConfig(length_scale=largo, noise_scale=ruido, noise_w_scale=ruido_w)
         buf = io.BytesIO()
         with wave.open(buf, "wb") as w:
             voz.synthesize_wav(texto, w, syn_config=cfg)
-        return buf.getvalue()
+        datos = buf.getvalue()
+    return _subir_tono(datos, tono)
 
 
-async def sintetizar_piper(texto: str, voz_id: str, velocidad_pct: int = 0) -> bytes:
+async def sintetizar_piper(texto: str, voz_id: str, velocidad_pct: int = 0, emocion: str = "neutro") -> bytes:
     if not piper_disponible():
         raise ErrorVoz("Piper no está instalado (pip install piper-tts).", 501)
-    if voz_id not in _PIPER_POR_ID:
+    base = VOCES_VIRTUALES.get(voz_id, {}).get("base", voz_id)
+    if base not in _PIPER_POR_ID:
         raise ErrorVoz("Esa voz no está en mi lista.", 400)
-    if not piper_instalada(voz_id):
+    if not piper_instalada(base):
         raise ErrorVoz("Esa voz sin internet todavía no está descargada.", 409)
     try:
-        datos = await asyncio.wait_for(asyncio.to_thread(_sintetizar_piper_sync, texto, voz_id, velocidad_pct), timeout=30)
+        datos = await asyncio.wait_for(asyncio.to_thread(_sintetizar_piper_sync, texto, voz_id, velocidad_pct, emocion), timeout=30)
     except ErrorVoz:
         raise
     except Exception as e:  # noqa: BLE001
@@ -301,7 +353,7 @@ async def _respaldo_sin_internet(limpio: str, velocidad: int, preferida: str | N
 
 
 async def hablar(texto: str, proveedor: str = "edge", voz: str = VOZ_RESPALDO, tono: int = 0,
-                 velocidad: int = 0) -> tuple[bytes, str, str | None, str]:
+                 velocidad: int = 0, emocion: str = "neutro") -> tuple[bytes, str, str | None, str]:
     """Devuelve (audio, proveedor usado, aviso, tipo mime).
     Cadena de respaldo: ElevenLabs -> voz gratuita (Edge) -> voz sin internet (Piper) -> (la interfaz usa la voz de Windows)."""
     limpio = limpiar_para_voz(texto)
@@ -334,10 +386,10 @@ async def hablar(texto: str, proveedor: str = "edge", voz: str = VOZ_RESPALDO, t
 
     # --- Piper (sin internet)
     if proveedor == "piper":
-        k = hashlib.sha1(json.dumps(["piper", voz, velocidad, limpio]).encode()).hexdigest()
+        k = hashlib.sha1(json.dumps(["piper", voz, velocidad, emocion, limpio]).encode()).hexdigest()
         if (hit := _cache_get(k)):
             return hit[0], "piper", aviso, hit[2]
-        audio = await sintetizar_piper(limpio, voz, velocidad)
+        audio = await (sintetizar_piper(limpio, voz, velocidad, emocion) if emocion != "neutro" else sintetizar_piper(limpio, voz, velocidad))
         _cache_set(k, (audio, "piper", MIME_WAV))
         return audio, "piper", aviso, MIME_WAV
 

@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import boveda, detector, llm, voz
+from . import antivirus, boveda, cuarentena, detector, llm, voz
 
 BASE = Path(__file__).resolve().parents[1]          # lyfan-guard/backend
 UI_DIR = BASE.parent / "ui"                          # lyfan-guard/ui
@@ -53,6 +53,12 @@ async def _vida(_app: FastAPI):
 app = FastAPI(title="LyFan Guard", version="0.2.0", lifespan=_vida)
 
 
+@app.post("/api/liberar")
+async def liberar_modelo():
+    """La ventana de escritorio lo llama al salir: el modelo deja libre la memoria de video."""
+    return {"liberado": await llm.liberar(OLLAMA_URL, MODELO)}
+
+
 class Mensaje(BaseModel):
     rol: Literal["usuario", "lyfan"]
     texto: str = Field(max_length=4000)
@@ -81,6 +87,7 @@ class HablarIn(BaseModel):
     voz: str = Field(default=voz.VOZ_RESPALDO, max_length=60)
     tono: int = Field(default=0, ge=-50, le=50)          # Hz, solo voces Edge
     velocidad: int = Field(default=0, ge=-50, le=50)     # %, solo voces Edge
+    emocion: Literal["neutro", "alegre", "curioso", "alerta", "calma"] = "neutro"   # voces sin internet (Piper)
 
 
 def _error_voz(e: "voz.ErrorVoz") -> JSONResponse:
@@ -117,7 +124,7 @@ async def voz_piper_descargar(c: DescargaPiperIn):
 async def voz_hablar(c: HablarIn):
     """Devuelve el audio (mp3). Cabeceras: X-Proveedor = quién habló; X-Aviso = por qué se cambió de voz."""
     try:
-        audio, usado, aviso, mime = await voz.hablar(c.texto, c.proveedor, c.voz, c.tono, c.velocidad)
+        audio, usado, aviso, mime = await voz.hablar(c.texto, c.proveedor, c.voz, c.tono, c.velocidad, c.emocion)
     except voz.ErrorVoz as e:
         return _error_voz(e)
     cab = {"X-Proveedor": usado, "Cache-Control": "no-store"}
@@ -242,6 +249,56 @@ async def boveda_analizar(c: ArchivoIn):
         return await asyncio.to_thread(boveda.analizar, c.nombre)
     except boveda.ErrorBoveda as e:
         return _error_boveda(e)
+
+
+# ------------------------------------------------------------------ antivirus y cuarentena
+class EscanearIn(BaseModel):
+    solo_nuevos: bool = False
+
+
+class IdIn(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+
+
+def _error_cuarentena(e) -> JSONResponse:
+    return JSONResponse({"error": e.mensaje}, status_code=e.codigo)
+
+
+@app.post("/api/antivirus/escanear")
+async def antivirus_escanear(c: EscanearIn):
+    """Escanea la carpeta de la bóveda (solo lo nuevo o lo que cambió desde la última vez)."""
+    return await asyncio.to_thread(antivirus.escanear, c.solo_nuevos)
+
+
+@app.get("/api/cuarentena")
+async def cuarentena_lista():
+    return {"elementos": await asyncio.to_thread(cuarentena.listar)}
+
+
+@app.post("/api/cuarentena/poner")
+async def cuarentena_poner(c: ArchivoIn):
+    try:
+        return await asyncio.to_thread(cuarentena.poner, c.nombre)
+    except boveda.ErrorBoveda as e:
+        return _error_boveda(e)
+    except cuarentena.ErrorCuarentena as e:
+        return _error_cuarentena(e)
+
+
+@app.post("/api/cuarentena/restaurar")
+async def cuarentena_restaurar(c: IdIn):
+    try:
+        return await asyncio.to_thread(cuarentena.restaurar, c.id)
+    except cuarentena.ErrorCuarentena as e:
+        return _error_cuarentena(e)
+
+
+@app.post("/api/cuarentena/eliminar")
+async def cuarentena_eliminar(c: IdIn):
+    try:
+        return await asyncio.to_thread(cuarentena.eliminar, c.id)
+    except cuarentena.ErrorCuarentena as e:
+        return _error_cuarentena(e)
 
 
 @app.post("/api/boveda/leer")

@@ -240,6 +240,7 @@
       }
       try { if (local === null && window.LyFanBoveda && !forzarAnalisis) local = await window.LyFanBoveda.comando(texto); } catch (e) { console.warn('Bóveda:', e); }
       if (local !== null) {
+        if (/^\s*\[ALERTA\]/.test(local)) { local = local.replace(/^\s*\[ALERTA\]\s*/, ''); nivel = 'alerta'; nivelBurbuja(nivel); }
         primerTrozo = false; acumulado = local;
         if (!V.prefs.activa) pose(poseHablando(root.dataset.nivel, false));
         decir(limpiarMd(local).trim()); V.agregarTexto(limpiarMd(local));
@@ -512,6 +513,43 @@
     } catch { /* el servidor aún no responde */ }
   }
 
+  // ================================================================== antivirus en segundo plano
+  // De vez en cuando (y solo si LyFan está libre) revisa la carpeta de la bóveda. Si encuentra algo nuevo, se pone en alerta y avisa.
+  const AV = { primeraS: 90, cadaMin: 6 };
+  const avActivo = () => { try { return localStorage.getItem('lyfan-antivirus-auto') !== 'no'; } catch { return true; } };
+  async function escaneoSilencioso() {
+    if (!avActivo() || ocupado || hablando() || oyendo()) return;
+    try {
+      const r = await (await fetch('/api/antivirus/escanear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"solo_nuevos":true}' })).json();
+      emitir({ tipo: 'escaneo', datos: r });
+      const nuevos = r.nuevos || [];
+      if (!nuevos.length) return;
+      if (window.LyFanBoveda && window.LyFanBoveda.recordar) window.LyFanBoveda.recordar(nuevos.map(h => h.nombre));
+      const peor = nuevos[0], nivel = nuevos.some(h => h.nivel === 'peligro') ? 'peligro' : 'alerta';
+      const det = peor.deteccion ? ` (${peor.deteccion.replace(' (heurístico)', '')})` : '';
+      const texto = nuevos.length === 1
+        ? `Atención, señor: encontré algo que requiere atención en su bóveda. ${peor.nombre}${det} parece ${peor.nivel === 'peligro' ? 'peligroso' : 'sospechoso'}: ${(peor.razones || [])[0] || 'tiene señales raras'}. ¿Lo pongo en cuarentena?`
+        : `Atención, señor: encontré ${nuevos.length} archivos que requieren atención en su bóveda: ${nuevos.slice(0, 3).map(h => h.nombre).join(', ')}. ¿Los pongo en cuarentena?`;
+      if (estuvoOculto && escritorio && escritorio.mostrar) escritorio.mostrar();
+      responder(texto, { tarea: 'scan', nivel });
+    } catch { /* el servidor no respondió; se intenta en la próxima vuelta */ }
+  }
+  setTimeout(() => { escaneoSilencioso(); setInterval(escaneoSilencioso, AV.cadaMin * 60000); }, AV.primeraS * 1000);
+
+  // ================================================================== emoción de la voz
+  // La voz juvenil (y Dave) cambia de tono y ritmo según lo que LyFan siente en ese momento.
+  V.emocion = texto => {
+    const n = root.dataset.nivel, p = window.LyFan && window.LyFan.pose;
+    if (n === 'alerta' || n === 'peligro' || p === 'alert' || p === 'alertTalk') return 'alerta';
+    if (p === 'happy' || p === 'wink' || n === 'tranquilo') return 'alegre';
+    if (p === 'curious') return 'curioso';
+    if ((ctxHabla && ctxHabla.tarea) || poseDeTarea) return 'calma';
+    const t = String(texto || '');
+    if (/¡[^!]{1,80}!/.test(t) || /\b(genial|excelente|perfecto|con gusto|qué gusto|felicidades|listo)\b/i.test(t)) return 'alegre';
+    if (/\?\s*$/.test(t)) return 'curioso';
+    return 'neutro';
+  };
+
   // ================================================================== ventana principal
   const normal = t => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim();
   const RE_PRINCIPAL = /\b(muestrate|mostrarte|aparece|abrete|(abre|abri|muestra|ensena|ensename|muestrame|pon|ponme|quiero ver) (tu|la|su) (ventana|interfaz|pantalla|aplicacion|app|panel)( principal)?|(ventana|interfaz|pantalla|panel) principal)\b/;
@@ -532,6 +570,7 @@
     else if (d.tipo === 'voz') { $('btn-voz').click(); setTimeout(() => emitir({ tipo: 'voz', activa: !!V.prefs.activa }), 50); }
     else if (d.tipo === 'boveda' && window.LyFanBoveda) window.LyFanBoveda.abrirPantalla(d.tarea || null);
     else if (d.tipo === 'caricia') hit.dispatchEvent(new MouseEvent('dblclick'));
+    else if (d.tipo === 'escanear') escaneoSilencioso();
   };
 
   // Lo que el panel de configuración (ajustes.js) necesita de este archivo
