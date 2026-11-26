@@ -43,7 +43,8 @@
     frase.scrollTop = frase.scrollHeight;
   }
   // Guiño y curioso duran como mínimo lo suficiente para verse: aunque algo pida volver a reposo antes, esperan.
-  const MIN_POSE = { wink: 2000, curious: 3500 };
+  const MIN_POSE = { wink: 2600, curious: 4000, happy: 2500 };   // un gesto se ve completo antes de cambiar
+  const CEDEN = new Set(['idle', 'listen', 'work', 'curious', 'wink']);    // lo que espera a que termine el gesto (ruido del micrófono, reposo, otro gesto)
   let poseDesde = 0, idleDiferido = 0;
   function pose(nombre) {                                   // cambia de expresión conservando el texto de la burbuja
     if (!window.LyFan) return;
@@ -51,9 +52,9 @@
     if (actual === nombre) return;
     clearTimeout(idleDiferido);
     const minimo = MIN_POSE[actual];
-    if (minimo && nombre === 'idle') {
+    if (minimo && CEDEN.has(nombre)) {                       // pensar, hablar o una alerta sí interrumpen al instante
       const resta = minimo - (performance.now() - poseDesde);
-      if (resta > 0) { idleDiferido = setTimeout(() => { if (window.LyFan.pose === actual) pose('idle'); }, resta + 30); return; }
+      if (resta > 0) { idleDiferido = setTimeout(() => { if (window.LyFan.pose === actual) pose(nombre); }, resta + 30); return; }
     }
     window.LyFan.setPose(nombre);
     window.LyFan.say(textoBurbuja);
@@ -165,7 +166,7 @@
         let r = Math.random() * GESTOS.reduce((a, g) => a + g[1], 0), g = GESTOS[0][0];
         for (const [p, w] of GESTOS) { if ((r -= w) <= 0) { g = p; break; } }
         ponerPose(g); if (FRASES_GESTO[g]) decir(azar(FRASES_GESTO[g]));
-        ocioTimers.push(setTimeout(() => { if (libre() && window.LyFan.pose === g) pose('idle'); }, g === 'wink' ? 2400 : g === 'work' ? 5000 : 3900));
+        ocioTimers.push(setTimeout(() => { if (libre() && window.LyFan.pose === g) pose('idle'); }, g === 'wink' ? 2900 : g === 'work' ? 5000 : 4300));
       }
       gestoAlAzar(false);
     }, espera));

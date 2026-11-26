@@ -173,7 +173,12 @@ ipcMain.handle('leer-portapapeles', () => clipboard.readText());
 
 // ----------------------------------------------------------------- pantalla de la Bóveda (ventana grande, sin marco)
 function abrirBoveda(tarea) {
-  if (vBoveda && !vBoveda.isDestroyed()) { if (vBoveda.isMinimized()) vBoveda.restore(); vBoveda.show(); vBoveda.focus(); return; }
+  if (vBoveda && !vBoveda.isDestroyed()) {
+    if (vBoveda.isMinimized()) vBoveda.restore(); vBoveda.show(); vBoveda.focus();
+    // si la pantalla quedó vacía (no llegó a cargar los archivos), se recarga
+    vBoveda.webContents.executeJavaScript("!!document.querySelector('#term .l')").then(ok => { if (!ok) vBoveda.webContents.reloadIgnoringCache(); }).catch(() => {});
+    return;
+  }
   const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
   vBoveda = new BrowserWindow({
     x: wa.x, y: wa.y, width: wa.width, height: wa.height,
@@ -184,7 +189,11 @@ function abrirBoveda(tarea) {
   vBoveda.setMenuBarVisibility(false);
   let hash = '';
   try { if (tarea && typeof tarea === 'object') { const t = JSON.stringify(tarea); if (t.length < 4000) hash = '#t=' + encodeURIComponent(t); } } catch { /* sin pedido */ }
-  vBoveda.loadURL(`${URL_BASE}/boveda.html${hash}`);
+  vBoveda.loadURL(`${URL_BASE}/boveda.html${hash}`, { extraHeaders: 'pragma: no-cache\n' });
+  // Si la página no cargó bien (LyFan estaba reiniciándose u ocupado), se vuelve a intentar
+  let reintentos = 0;
+  vBoveda.webContents.on('did-fail-load', () => { if (reintentos++ < 5) setTimeout(() => { if (vBoveda && !vBoveda.isDestroyed()) vBoveda.loadURL(`${URL_BASE}/boveda.html${hash}`); }, 800); });
+  vBoveda.webContents.on('unresponsive', () => { if (vBoveda && !vBoveda.isDestroyed()) vBoveda.webContents.reloadIgnoringCache(); });
   vBoveda.once('ready-to-show', () => { vBoveda.show(); vBoveda.focus(); });
   vBoveda.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   vBoveda.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(URL_BASE)) e.preventDefault(); });

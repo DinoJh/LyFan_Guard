@@ -380,8 +380,16 @@
   (async () => {
     log('info', 'LYFAN GUARD // BÓVEDA v1');
     log('tenue', 'módulo de cifrado AES-256-GCM · clave derivada con scrypt · todo se hace en este equipo');
-    try { pintar(await api('')); } catch { log('err', 'No pude conectarme con LyFan. ¿Está encendido?'); return; }
-    log('tenue', 'carpeta: ' + est.carpeta);
+    // Si LyFan está ocupado justo al abrir, se reintenta en vez de quedarse con la pantalla vacía
+    for (let intento = 1; ; intento++) {
+      try { pintar(await api('')); break; }
+      catch {
+        if (intento >= 8) { log('err', 'No pude conectarme con LyFan. ¿Está encendido?'); return; }
+        if (intento === 1) log('aviso', 'Conectando con LyFan…');
+        await new Promise(r => setTimeout(r, 700 * intento));
+      }
+    }
+    log('tenue', 'carpeta: Documentos / ' + String(est.carpeta).split(/[\\/]/).pop());
     log(est.creada ? (est.bloqueada ? 'aviso' : 'ok') : 'info', est.creada ? (est.bloqueada ? 'estado: BLOQUEADA — se pedirá su contraseña al cifrar o descifrar' : 'estado: ABIERTA') : 'estado: aún no hay bóveda');
     log('ok', 'listo. Diga a LyFan qué desea hacer, o use los botones.', { cursor: true });
     try { const h = location.hash.match(/^#t=(.+)$/); if (h) tarea(JSON.parse(decodeURIComponent(h[1]))); else if (!est.creada) crearBoveda(); } catch { /* sin pedido */ }
