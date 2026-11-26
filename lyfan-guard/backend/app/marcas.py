@@ -28,6 +28,15 @@ MARCAS = {
 # (por ejemplo "claro que sí"). Sí se usan al revisar dominios.
 ALIAS_SOLO_DOMINIO = {"claro"}
 
+# Túneles temporales: exponen la PC de alguien a internet con una dirección al azar.
+# Los kits de phishing (Zphisher, CamPhish, etc.) los usan para publicar páginas falsas en segundos.
+TUNELES = {
+    "trycloudflare.com", "ngrok.io", "ngrok.app", "ngrok-free.app", "ngrok-free.dev", "ngrok.dev", "loca.lt",
+    "localtunnel.me", "serveo.net", "serveousercontent.com", "localhost.run", "lhr.life", "lhr.rocks",
+    "pinggy.link", "pinggy.online", "a.pinggy.io", "tunnelmole.net", "devtunnels.ms", "bore.pub",
+    "localxpose.io", "loclx.io", "telebit.io", "playit.gg", "zrok.io", "share.zrok.io",
+}
+
 ACORTADORES = {
     "bit.ly", "tinyurl.com", "cutt.ly", "t.ly", "is.gd", "shorturl.at", "rb.gy",
     "goo.gl", "ow.ly", "tiny.cc", "n9.cl", "acortar.link",

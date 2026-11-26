@@ -62,7 +62,7 @@
         <div class="escena-cab">
           <div>
             <h1 id="saludo">Hola</h1>
-            <p class="sub">Su asistente de seguridad informática</p>
+            <p class="sub">Su guardián digital</p>
           </div>
           <span class="chip-pose" id="chip-pose"><i></i><span>En reposo</span></span>
         </div>
@@ -111,8 +111,8 @@
         <div class="mensajes" id="mensajes" aria-live="polite"></div>
         <div class="sugerencias" id="sugerencias">
           <button type="button" class="sug">¿Este enlace es seguro?</button>
-          <button type="button" class="sug">Muéstrame los archivos cifrados</button>
-          <button type="button" class="sug">¿Cómo creo una contraseña segura?</button>
+          <button type="button" class="sug">¿Esta página es segura?</button>
+          <button type="button" class="sug">Revisa mis correos</button>
         </div>
         <form class="escribir" id="form" autocomplete="off">
           <textarea id="entrada" rows="1" placeholder="Escríbale a LyFan…" aria-label="Mensaje para LyFan"></textarea>
@@ -129,14 +129,13 @@
     <!-- ===================================================== ANALIZAR -->
     <section class="vista" id="v-analizar" aria-label="Analizar un mensaje o enlace">
       <div class="panel ancho">
-        <h1>Analizar un mensaje o enlace</h1>
-        <p class="sub">Pegue un SMS, correo, mensaje de WhatsApp o un enlace. LyFan lo revisa en su equipo y le dice si es sospechoso.</p>
-        <textarea id="a-texto" class="grande" rows="7" placeholder="Ejemplo: «Su cuenta BCP fue bloqueada. Ingrese aquí para activarla: bit.ly/…»"></textarea>
+        <h1>Analizar</h1>
+        <p class="sub">¿Es una estafa? Pegue el mensaje o enlace.</p>
+        <textarea id="a-texto" class="grande" rows="7" placeholder="Mensaje, SMS o enlace…"></textarea>
         <div class="fila">
-          <button type="button" class="boton primario" id="a-analizar">Analizar ahora</button>
-          <button type="button" class="boton" id="a-pegar">Pegar del portapapeles</button>
-          <button type="button" class="boton" id="a-pagina">Revisar la página que tengo abierta</button>
-          <span class="tenue">Para archivos (.bat, .txt…) use la Bóveda.</span>
+          <button type="button" class="boton primario" id="a-analizar">Analizar</button>
+          <button type="button" class="boton" id="a-pegar">Pegar</button>
+          <button type="button" class="boton" id="a-pagina">Página abierta</button>
         </div>
         <article class="resultado" id="a-resultado" hidden>
           <div class="res-cab">
@@ -146,11 +145,6 @@
           <ul id="a-razones"></ul>
           <p class="accion" id="a-accion"></p>
         </article>
-        <div class="consejos">
-          <div><b>Desconfíe de la urgencia</b><span>«Su cuenta será bloqueada hoy» es la trampa más común.</span></div>
-          <div><b>Revise el enlace</b><span>Los bancos no usan acortadores como bit.ly ni dominios raros.</span></div>
-          <div><b>Nunca comparta códigos</b><span>Nadie legítimo le pedirá su clave, token o código SMS.</span></div>
-        </div>
       </div>
     </section>
 
@@ -160,7 +154,7 @@
         <div class="cab-seccion">
           <div>
             <h1>Protección</h1>
-            <p class="sub">LyFan Antivirus revisa por dentro los archivos de su bóveda, sin ejecutarlos y sin internet.</p>
+            <p class="sub">Antivirus local de su bóveda</p>
           </div>
           <span class="chip-estado" id="p-estado">—</span>
         </div>
@@ -172,17 +166,11 @@
           </div>
           <button type="button" class="boton primario" id="p-escanear">Escanear ahora</button>
         </div>
-        <label class="interruptor"><input type="checkbox" id="p-auto" checked> <span>Escaneo automático en segundo plano (cada pocos minutos, solo lo nuevo)</span></label>
-        <h2>Amenazas encontradas</h2>
+        <label class="interruptor"><input type="checkbox" id="p-auto" checked> <span>Escaneo automático</span></label>
+        <h2>Amenazas</h2>
         <ul class="archivos" id="p-hallazgos"></ul>
         <h2>Cuarentena</h2>
-        <p class="tenue">Los archivos aislados no pueden abrirse ni ejecutarse. Si fue una falsa alarma, devuélvalo y LyFan no lo volverá a marcar.</p>
         <ul class="archivos" id="p-cuarentena"></ul>
-        <div class="consejos">
-          <div><b>Qué revisa</b><span>Scripts (.bat, .ps1, .vbs, .js), programas (.exe, .dll), Office con macros, PDF, .zip, accesos directos y texto.</span></div>
-          <div><b>Cómo detecta</b><span>Firmas conocidas (como EICAR) y heurística: busca lo que suelen hacer los virus.</span></div>
-          <div><b>Sea realista</b><span>Es un revisor sencillo: mantenga también activo Windows Defender.</span></div>
-        </div>
       </div>
     </section>
 
@@ -192,22 +180,21 @@
         <div class="cab-seccion">
           <div>
             <h1>Correo</h1>
-            <p class="sub">LyFan revisa su Gmail en busca de estafas y phishing. Permiso de <b>solo lectura</b>: no puede enviar, borrar ni mover correos.</p>
+            <p class="sub">Phishing en Gmail · solo lectura</p>
           </div>
           <span class="chip-estado" id="c-estado">—</span>
         </div>
 
         <!-- paso 1: credenciales -->
         <div class="pasos" id="c-paso-cred" hidden>
-          <h2>Conectar Gmail por primera vez</h2>
-          <ol>
-            <li>Entre a <b>console.cloud.google.com</b> con su cuenta y cree un proyecto (por ejemplo «LyFan Guard»).</li>
-            <li>En <b>APIs y servicios → Biblioteca</b>, busque <b>Gmail API</b> y pulse <b>Habilitar</b>.</li>
-            <li>En <b>Google Auth Platform</b> (antes «Pantalla de consentimiento»), pulse <b>Comenzar</b>: nombre «LyFan Guard», su correo, público <b>Externo</b>.</li>
-            <li>En <b>Público → Usuarios de prueba</b>, agregue su propio correo de Gmail.</li>
-            <li>En <b>Clientes → Crear cliente</b>, elija <b>App de escritorio</b> y descargue el JSON.</li>
-            <li>Cárguelo aquí. Se queda solo en este equipo. Al conectar, Google dirá «no verificó esta app»: es la suya, pulse <b>Continuar</b>.</li>
-          </ol>
+          <h2>Conectar Gmail</h2>
+          <details class="ayuda"><summary>¿Cómo obtener el archivo de Google?</summary><ol>
+            <li><b>console.cloud.google.com</b> → nuevo proyecto «LyFan Guard».</li>
+            <li>Habilite <b>Gmail API</b>.</li>
+            <li><b>Google Auth Platform</b> → Comenzar → público <b>Externo</b>.</li>
+            <li><b>Público</b> → agregue su Gmail como usuario de prueba.</li>
+            <li><b>Clientes</b> → App de escritorio → descargue el JSON.</li>
+          </ol></details>
           <div class="fila">
             <button type="button" class="boton primario" id="c-cargar">Cargar credentials.json</button>
             <input type="file" id="c-archivo" accept=".json,application/json" hidden>
@@ -218,7 +205,7 @@
         <!-- paso 2: iniciar sesión con Google -->
         <div class="escudo" id="c-paso-login" hidden>
           <div class="escudo-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></div>
-          <div><b>Inicie sesión con Google</b><span id="c-login-msg">Se abrirá la página oficial de Google en su navegador. LyFan nunca ve su contraseña.</span></div>
+          <div><b>Inicie sesión con Google</b><span id="c-login-msg">Página oficial de Google</span></div>
           <button type="button" class="boton primario" id="c-conectar">Conectar con Google</button>
         </div>
 
@@ -229,9 +216,9 @@
             <div><b id="c-titulo">Bandeja de entrada</b><span id="c-detalle">—</span></div>
             <button type="button" class="boton primario" id="c-revisar">Revisar ahora</button>
           </div>
-          <label class="interruptor"><input type="checkbox" id="c-auto" checked> <span>Revisar mis correos nuevos en segundo plano y avisarme si algo es sospechoso</span></label>
+          <label class="interruptor"><input type="checkbox" id="c-auto" checked> <span>Avisarme de correos sospechosos</span></label>
           <ul class="correos" id="c-lista"></ul>
-          <div class="fila"><button type="button" class="boton" id="c-desconectar">Desconectar Gmail</button><span class="tenue">Al desconectar, Google también olvida el permiso de LyFan.</span></div>
+          <div class="fila"><button type="button" class="boton" id="c-desconectar">Desconectar Gmail</button></div>
         </div>
       </div>
     </section>
@@ -242,7 +229,7 @@
         <div class="cab-seccion">
           <div>
             <h1>Bóveda</h1>
-            <p class="sub">Sus archivos protegidos con AES-256 en la carpeta <em id="b-carpeta">LyFan Bóveda</em>.</p>
+            <p class="sub">Cifrado AES-256 · <em id="b-carpeta">LyFan Bóveda</em></p>
           </div>
           <span class="chip-estado" id="b-estado">—</span>
         </div>
@@ -260,11 +247,10 @@
         <div class="nota-clave">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>
           <div>
-            <b>Una sola contraseña para todo</b>
-            <span>Su bóveda usa una única contraseña maestra: la misma cifra y descifra todos sus archivos, y volver a cifrar no pide otra. Si quiere cambiarla, use «Cambiar contraseña»; LyFan vuelve a cifrar todo con la nueva. Si la olvida, nadie podrá recuperar los archivos.</span>
+            <b>Una contraseña maestra</b>
+            <span>Protege todos sus archivos. Si la olvida, no hay forma de recuperarlos.</span>
           </div>
         </div>
-        <p class="tenue">También puede decirle: «cifra trabajo», «descifra trabajo», «muéstrame los archivos cifrados» o «analiza el .bat».</p>
       </div>
     </section>
 
@@ -272,7 +258,7 @@
     <section class="vista" id="v-actividad" aria-label="Actividad de hoy">
       <div class="panel ancho">
         <h1>Actividad</h1>
-        <p class="sub">Lo que LyFan hizo en esta sesión.</p>
+        <p class="sub">Esta sesión</p>
         <div class="cifras">
           <div class="cifra"><b id="s-mensajes">0</b><span>mensajes</span></div>
           <div class="cifra"><b id="s-analisis">0</b><span>análisis</span></div>

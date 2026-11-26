@@ -35,3 +35,13 @@ def test_pagina_normal_y_paginas_internas(monkeypatch):
 def test_no_descarga_direcciones_privadas():
     assert navegador._descargar("http://127.0.0.1:8765/") is None
     assert navegador._descargar("http://192.168.1.1/") is None
+
+
+def test_tunel_de_zphisher_y_marca_internacional(monkeypatch):
+    html = ("<html><title>Instagram</title><form method='post' action='login.php'>"
+            "<input name='username'><input type='password' name='password'></form></html>")
+    monkeypatch.setattr(navegador, "_descargar", lambda url: (html, url))
+    r = navegador.revisar("https://acute-easter-categories-portions.trycloudflare.com/")
+    assert r["nivel"] == "peligro"
+    assert any("túnel" in x for x in r["razones"]) and any("Instagram" in x for x in r["razones"])
+    assert navegador.revisar("https://www.instagram.com/accounts/login/")["nivel"] == "tranquilo"

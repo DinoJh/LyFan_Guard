@@ -29,6 +29,16 @@ HOSPEDAJE_GRATIS = ("000webhostapp.com", "weebly.com", "wixsite.com", "github.io
                     "ngrok-free.app", "trycloudflare.com", "sites.google.com", "forms.gle", "docs.google.com/forms",
                     "webflow.io", "square.site", "godaddysites.com", "carrd.co", "ipfs.io")
 MAX_HTML = 1_500_000
+# Marcas que suelen copiar los kits de phishing. Solo se miran en el título de la página (no en el texto),
+# porque muchas páginas legítimas dicen «Iniciar sesión con Google».
+GLOBALES = {
+    "Facebook": ["facebook.com", "fb.com", "messenger.com"], "Instagram": ["instagram.com"], "Google": ["google.com", "google.com.pe", "youtube.com"],
+    "Gmail": ["google.com"], "Microsoft": ["microsoft.com", "live.com", "office.com", "microsoftonline.com", "outlook.com"],
+    "Outlook": ["outlook.com", "live.com", "office.com"], "Netflix": ["netflix.com"], "PayPal": ["paypal.com"], "Apple": ["apple.com", "icloud.com"],
+    "TikTok": ["tiktok.com"], "Twitter": ["twitter.com", "x.com"], "WhatsApp": ["whatsapp.com"], "LinkedIn": ["linkedin.com"],
+    "Steam": ["steampowered.com", "steamcommunity.com"], "Discord": ["discord.com"], "Spotify": ["spotify.com"], "Amazon": ["amazon.com"],
+    "Roblox": ["roblox.com"], "Free Fire": ["ff.garena.com", "garena.com"], "Snapchat": ["snapchat.com"], "Twitch": ["twitch.tv"],
+}
 
 
 class ErrorNavegador(Exception):
@@ -183,6 +193,15 @@ def analizar_contenido(html: str, url: str, oficial: bool = False) -> tuple[int,
                 puntos += 55; razones.append(f"Se presenta como {marca}, pero no está en un dominio oficial de {marca} y le pide datos")
             else:
                 puntos += 15; razones.append(f"Menciona a {marca}, pero no es una página oficial de {marca}")
+            break
+    # marcas internacionales copiadas (kits como Zphisher): se mira solo el título
+    tnorm = detector.normalizar(titulo)
+    for marca, dominios in GLOBALES.items():
+        if re.search(rf"\b{re.escape(detector.normalizar(marca))}\b", tnorm):
+            reg = detector.dominio_registrable(host)
+            if not any(reg == d or host == d or host.endswith("." + d) for d in dominios):
+                puntos += 55 if (pide_clave or pide_codigo) else 25
+                razones.insert(0, f"Imita la página de {marca}, pero no está en un dominio de {marca}")
             break
     if pide_clave and not oficial:         # en un sitio oficial, pedir la clave es normal
         puntos += 10; razones.append("Tiene un formulario que pide contraseña")

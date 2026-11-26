@@ -55,7 +55,7 @@
     caja.textContent = '';
     if (!historial.length) {
       const v = document.createElement('div'); v.className = 'vacio';
-      v.innerHTML = '<b>Aún no hemos conversado</b>Escríbale o háblele a LyFan. Puede preguntarle por un enlace, un mensaje raro o pedirle que cifre un archivo.';
+      v.innerHTML = '<b>Hola</b>Escríbale o háblele a LyFan.';
       caja.append(v); return;
     }
     for (const m of historial) caja.append(globo(m));
@@ -114,14 +114,14 @@
     try { const t = await navigator.clipboard.readText(); if (t) $('a-texto').value = t; } catch { $('a-texto').focus(); }
   });
   $('a-pagina').addEventListener('click', async () => {      // revisa la pestaña activa del navegador
-    const b = $('a-pagina'); b.disabled = true; b.textContent = 'Revisando la página…';
+    const b = $('a-pagina'); b.disabled = true; b.textContent = 'Revisando…';
     try {
       const r = await postJ('/api/navegador/revisar', {});
       $('a-texto').value = r.url;
       mostrarAnalisis({ ...r, razones: r.razones, accion: r.accion });
       $('a-titulo').textContent = (r.nivel === 'tranquilo' ? 'Página sin señales de phishing' : r.nivel === 'alerta' ? 'Página sospechosa' : 'Posible página de phishing') + ' · ' + (r.dominio || '');
     } catch (e) { $('a-resultado').hidden = false; $('a-titulo').textContent = e.message; $('a-razones').textContent = ''; $('a-accion').textContent = ''; }
-    finally { b.disabled = false; b.textContent = 'Revisar la página que tengo abierta'; }
+    finally { b.disabled = false; b.textContent = 'Página abierta'; }
   });
   const TITULOS = { tranquilo: 'Todo en orden', alerta: 'Atención: es sospechoso', peligro: 'Cuidado: posible estafa' };
   const NIVELES = { tranquilo: 'No encontré señales de peligro.', alerta: 'Tiene señales sospechosas.', peligro: 'Tiene muchas señales de estafa.' };
@@ -144,13 +144,13 @@
       const e = await (await fetch('/api/boveda')).json();
       const arch = e.archivos || [], cif = arch.filter(a => a.cifrado).length;
       $('b-total').textContent = arch.length; $('b-cifrados').textContent = cif; $('b-claro').textContent = arch.length - cif;
-      if (e.carpeta) $('b-carpeta').textContent = e.carpeta;
+      if (e.carpeta) $('b-carpeta').textContent = e.carpeta.split(/[\\/]/).pop();
       const chip = $('b-estado');
       chip.dataset.e = !e.creada ? 'nueva' : e.bloqueada ? 'bloqueada' : 'abierta';
       chip.textContent = !e.creada ? 'Sin crear' : e.bloqueada ? '🔒 Bloqueada' : '🔓 Abierta';
       $('b-clave').disabled = !e.creada;
       const ul = $('b-lista'); ul.textContent = '';
-      if (!arch.length) { const li = document.createElement('li'); li.className = 'vacio-l'; li.textContent = e.creada ? 'Su bóveda está vacía. Abra la bóveda y arrastre ahí sus archivos.' : 'Aún no tiene bóveda. Ábrala para crear su contraseña maestra.'; ul.append(li); return; }
+      if (!arch.length) { const li = document.createElement('li'); li.className = 'vacio-l'; li.textContent = e.creada ? 'Bóveda vacía' : 'Sin bóveda todavía'; ul.append(li); return; }
       for (const a of arch.slice(0, 12)) {
         const nom = a.nombre.replace(/\.lyfan$/, ''), ext = (nom.match(/\.([^.]+)$/) || [, 'archivo'])[1].toUpperCase().slice(0, 5);
         const li = document.createElement('li');
@@ -181,11 +181,11 @@
   function pintarEscaneo(r) {
     const hs = r.hallazgos || [], esc = $('p-escudo');
     esc.dataset.e = hs.length ? 'alerta' : '';
-    $('p-titulo').textContent = hs.length ? (hs.length === 1 ? '1 archivo requiere atención' : hs.length + ' archivos requieren atención') : 'Su bóveda está protegida';
-    $('p-detalle').textContent = `Último escaneo: ${hora()} · ${r.total} ${r.total === 1 ? 'archivo revisado' : 'archivos revisados'} · ${r.motor || 'LyFan Antivirus'}`;
+    $('p-titulo').textContent = hs.length ? (hs.length === 1 ? '1 amenaza' : hs.length + ' amenazas') : 'Protegido';
+    $('p-detalle').textContent = `${r.total} ${r.total === 1 ? 'archivo' : 'archivos'} · ${hora()}`;
     $('p-estado').textContent = hs.length ? '⚠ Atención' : '✓ Protegido'; $('p-estado').dataset.e = hs.length ? 'bloqueada' : 'abierta';
     const ul = $('p-hallazgos'); ul.textContent = '';
-    if (!hs.length) { filaVacia(ul, 'Sin amenazas. Todo en orden.'); return; }
+    if (!hs.length) { filaVacia(ul, 'Sin amenazas'); return; }
     for (const h of hs) {
       const li = document.createElement('li');
       li.innerHTML = '<span class="ext"></span><span class="n"></span><span class="det"></span>';
@@ -203,7 +203,7 @@
     const ul = $('p-cuarentena'); ul.textContent = '';
     let lista = [];
     try { lista = (await (await fetch('/api/cuarentena')).json()).elementos || []; } catch { /* sin conexión */ }
-    if (!lista.length) { filaVacia(ul, 'La cuarentena está vacía.'); return; }
+    if (!lista.length) { filaVacia(ul, 'Vacía'); return; }
     for (const q of lista) {
       const li = document.createElement('li');
       li.innerHTML = '<span class="ext">AISLADO</span><span class="n"></span><span class="det"></span>';
@@ -242,8 +242,8 @@
     const ul = $('c-lista'); ul.textContent = '';
     const sos = r.sospechosos || [];
     $('c-resumen').dataset.e = sos.length ? 'alerta' : '';
-    $('c-titulo').textContent = sos.length ? `${sos.length === 1 ? '1 correo sospechoso' : sos.length + ' correos sospechosos'}` : 'Su bandeja se ve segura';
-    $('c-detalle').textContent = `Revisé ${r.revisados} correos recientes de ${r.cuenta || 'su cuenta'} · ${hora()}`;
+    $('c-titulo').textContent = sos.length ? `${sos.length === 1 ? '1 correo sospechoso' : sos.length + ' correos sospechosos'}` : 'Bandeja segura';
+    $('c-detalle').textContent = `${r.revisados} correos · ${hora()}`;
     if (!(r.correos || []).length) { filaVacia(ul, 'No hay correos recientes en la bandeja de entrada.'); return; }
     const orden = { peligro: 0, alerta: 1, tranquilo: 2 };
     for (const c of [...r.correos].sort((a, b) => orden[a.nivel] - orden[b.nivel] || b.fecha - a.fecha)) {
@@ -252,7 +252,7 @@
       li.querySelector('.asunto').textContent = c.asunto;
       li.querySelector('.de').textContent = c.de + (c.de_correo && c.de !== c.de_correo ? ` <${c.de_correo}>` : '');
       li.querySelector('.hora').textContent = new Date(c.fecha * 1000).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-      li.querySelector('.por').textContent = (c.razones || []).slice(0, 2).join(' · ') + (c.accion ? ' — ' + c.accion : '');
+      li.querySelector('.por').textContent = (c.razones || [])[0] || '';
       ul.append(li);
     }
   }
@@ -329,7 +329,7 @@
       case 'mensaje': agregar({ rol: d.rol, texto: d.texto, hora: d.hora }); if (d.rol === 'usuario') escribiendo(true); else escribiendo(false); break;
       case 'ocupado':
         ocupado = !!d.valor; $('bt-enviar').disabled = ocupado;
-        if (!ocupado) { escribiendo(false); $('a-analizar').disabled = false; $('a-analizar').textContent = 'Analizar ahora'; }
+        if (!ocupado) { escribiendo(false); $('a-analizar').disabled = false; $('a-analizar').textContent = 'Analizar'; }
         break;
       case 'analisis': mostrarAnalisis(d.datos); break;
       case 'mic': pintarMic(d.estado); break;

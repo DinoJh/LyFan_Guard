@@ -10,7 +10,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
-from .marcas import (ACORTADORES, ALIAS_SOLO_DOMINIO, MARCAS, TLD_CONOCIDOS, TLD_RIESGO)
+from .marcas import (ACORTADORES, ALIAS_SOLO_DOMINIO, MARCAS, TLD_CONOCIDOS, TLD_RIESGO, TUNELES)
 
 UMBRAL_ALERTA = 30
 UMBRAL_PELIGRO = 60
@@ -153,6 +153,12 @@ def analizar_url(url: str) -> ResultadoURL:
         puntos.append((25, "Tiene un @ en la dirección: puede esconder el sitio real."))
     if registrable in ACORTADORES:
         puntos.append((30, "Es un enlace acortado: no se ve a dónde lleva."))
+    if registrable in TUNELES or any(host == t or host.endswith("." + t) for t in TUNELES):
+        puntos.append((55, "Es un túnel temporal (como trycloudflare o ngrok): la página corre en la PC de alguien. "
+                           "Lo usan los kits de phishing como Zphisher."))
+        sub = host[: -len(registrable)].strip(".")
+        if sub.count("-") >= 2:
+            puntos.append((10, "Su dirección son palabras al azar, generada automáticamente."))
     tld = host.rsplit(".", 1)[-1]
     if tld in TLD_RIESGO:
         puntos.append((18, f"Termina en .{tld}, muy usado en sitios fraudulentos."))

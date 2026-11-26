@@ -245,3 +245,8 @@ textarea.grande:focus { border-color: #3a6d63; }
 }
 
 [hidden] { display: none !important; }
+
+/* ayuda plegable (correo) */
+.ayuda summary { cursor: pointer; color: var(--suave); font-size: 13px; }
+.ayuda summary:hover { color: var(--texto); }
+.ayuda ol { margin-top: 10px; }
