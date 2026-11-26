@@ -6,7 +6,7 @@ Puedes **escribirle o hablarle**, y LyFan responde con **voz**. El análisis y e
 
 ## Cómo probarlo
 
-Requisitos: Python 3.10 a 3.13, Node.js 22 y [Ollama](https://ollama.com) con el modelo `qwen3.5:4b` (`ollama pull qwen3.5:4b`).
+Requisitos: **Windows 10/11 de 64 bits** (usa funciones propias de Windows: DPAPI, UI Automation y la voz Piper con CUDA), Python 3.10 a 3.13 de 64 bits, Node.js 22 y [Ollama](https://ollama.com) con el modelo `qwen3.5:4b` (`ollama pull qwen3.5:4b`). Con tarjeta NVIDIA aprovecha la GPU; sin ella, todo funciona igual pero más lento.
 
 ```powershell
 # una sola vez

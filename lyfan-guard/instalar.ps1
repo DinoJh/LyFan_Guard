@@ -1,5 +1,5 @@
 # LyFan Guard (MVP) · preparación inicial (una sola vez).
-# Requisitos: Python 3.10 a 3.13, Node.js 22 y Ollama con el modelo:  ollama pull qwen3.5:4b
+# Requisitos: Windows 10/11 de 64 bits, Python 3.10 a 3.13 (64 bits), Node.js 22 y Ollama con el modelo:  ollama pull qwen3.5:4b
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path -Parent $MyInvocation.MyCommand.Path
 
