@@ -241,6 +241,7 @@
         abrirPrincipal();
         local = azar(['Claro. Aquí tiene mi ventana principal.', 'Con gusto, le abro mi ventana principal.', 'Por supuesto, señor. Ya le muestro mi ventana principal.', 'De acuerdo, aquí estoy en grande.', '¿Quiere verme mejor? Aquí tiene mi ventana principal.', 'Enseguida. Le abro mi interfaz.']);
       }
+      if (local === null && !forzarAnalisis && RE_QUE_PUEDES.test(normal(texto))) local = azar(QUE_PUEDO);
       if (local === null && !forzarAnalisis) { try { local = await comandoPagina(texto); } catch (e) { console.warn('Página:', e); } }
       if (local === null && !forzarAnalisis) { try { local = await comandoCorreo(texto); } catch (e) { console.warn('Correo:', e); } }
       try { if (local === null && window.LyFanBoveda && !forzarAnalisis) local = await window.LyFanBoveda.comando(texto); } catch (e) { console.warn('Bóveda:', e); }
@@ -540,6 +541,22 @@
     } catch { /* el servidor no respondió; se intenta en la próxima vuelta */ }
   }
   setTimeout(() => { escaneoSilencioso(); setInterval(escaneoSilencioso, AV.cadaS * 1000); }, AV.primeraS * 1000);
+
+  // ================================================================== ¿qué puedes hacer?
+  const RE_QUE_PUEDES = /\b(que (puedes|sabes|podrias) hacer|que mas (puedes|sabes) hacer|que haces|que eres capaz|tus (funciones|capacidades|habilidades|poderes)|que (funciones|capacidades|habilidades) tienes|para que sirves|en que (me )?(puedes|podrias) ayudar|como me (puedes|podrias) (ayudar|proteger)|que sabes hacer)\b/;
+  const QUE_PUEDO = [
+    'Con gusto. Soy su guardián de seguridad: detecto estafas y phishing en los mensajes y enlaces que me pegue o me dicte, en la página que tenga abierta y en sus correos de Gmail. '
+      + 'También tengo un antivirus propio que revisa sus archivos por dentro, los vigila cada 30 segundos y aísla lo peligroso en cuarentena. '
+      + 'Y guardo sus archivos en una bóveda con cifrado de grado militar AES-256, con una sola contraseña maestra. '
+      + 'Todo ocurre en su equipo, sin enviar sus datos a internet. ¿Por dónde empezamos?',
+    'Por supuesto, señor. Puedo decirle si un mensaje, un enlace, una página web o un correo es una estafa, y por qué. '
+      + 'Tengo un antivirus que revisa programas, scripts, documentos y comprimidos sin ejecutarlos, y pone en cuarentena lo peligroso. '
+      + 'Además cifro sus archivos en mi bóveda con AES-256, el mismo nivel que usan los gobiernos. '
+      + 'Y todo lo hago aquí mismo, con mi propia inteligencia artificial y sin internet. Pídamelo por voz o escribiendo.',
+    'Muy bien. Mis funciones son cuatro: detector de estafas y phishing para mensajes, enlaces, páginas y Gmail; antivirus con cuarentena y escaneo automático; '
+      + 'bóveda con cifrado de grado militar; y conversación por voz con inteligencia artificial local. '
+      + 'Su información nunca sale de su computadora. Por ejemplo, pruebe decirme «¿esta página es segura?» o «escanea la bóveda».',
+  ];
 
   // ================================================================== ¿esta página es segura?
   const RE_PAGINA = /\b(esta|esa|la|mi|aquella) (pagina|web|pagina web|sitio|sitio web|url|direccion)\b|\ben que (pagina|web|sitio) estoy\b|\b(pagina|web|sitio) (que|donde) (estoy|tengo abiert\w*|abri)\b|\b(navegador|pestana)\b/;
