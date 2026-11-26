@@ -175,7 +175,7 @@
       if (App.poseTarea) App.poseTarea(null);
       if (!r.hallazgos.length) return `Escaneo completo: revisé ${r.total} ${r.total === 1 ? 'archivo' : 'archivos'} de su bóveda y no encontré amenazas.`;
       ultimos = r.hallazgos.map(h => base(h.nombre));
-      return `[ALERTA] Escaneo completo: encontré ${r.hallazgos.length === 1 ? 'algo que requiere atención' : r.hallazgos.length + ' archivos que requieren atención'}: ${r.hallazgos.slice(0, 3).map(resumenHallazgo).join(', ')}. ¿Los pongo en cuarentena?`;
+      return `[ALERTA] Escaneo completo: encontré ${r.hallazgos.length === 1 ? 'algo que requiere atención' : r.hallazgos.length + ' archivos que requieren atención'}: ${r.hallazgos.slice(0, 3).map(resumenHallazgo).join(', ')}. ¿${r.hallazgos.length === 1 ? 'Lo' : 'Los'} pongo en cuarentena?`;
     }
     return null;
   }
